@@ -7,11 +7,11 @@
 #include "font.h"
 #include "levels.h"
 
-#define HUD_SCREENBLOCK     28
+#define HUD_SCREENBLOCK     27
 #define HUD_CHARBLOCK       0
-#define GAME_SCREENBLOCK    24
+#define GAME_SCREENBLOCK    28
 #define GAME_CHARBLOCK      1
-#define CLOUD_SCREENBLOCK   26
+#define CLOUD_SCREENBLOCK   30
 
 #define PLAYER_WIDTH        16
 #define PLAYER_HEIGHT       16

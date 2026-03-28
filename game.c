@@ -114,7 +114,7 @@ static void makeLadderTile(void) {
     int x;
     int y;
 
-    for (i = 0; i < 64; i++) pixels[i] = 2;
+    for (int i = 0; i < 64; i++) pixels[i] = 2;
     for (y = 0; y < 8; y++) {
         pixels[y * 8 + 2] = 9;
         pixels[y * 8 + 5] = 9;
@@ -132,7 +132,7 @@ static void makeHazardTile(void) {
     int x;
     int y;
 
-    for (i = 0; i < 64; i++) pixels[i] = 2;
+    for (int i = 0; i < 64; i++) pixels[i] = 2;
     for (x = 1; x < 7; x++) {
         pixels[6 * 8 + x] = 6;
         if (x > 1 && x < 6) pixels[4 * 8 + x] = 6;
@@ -161,10 +161,9 @@ static void makeSoilTile(void) {
 
 static void makeBeanstalkTile(void) {
     u8 pixels[64];
-    int x;
     int y;
 
-    for (i = 0; i < 64; i++) pixels[i] = 2;
+    for (int i = 0; i < 64; i++) pixels[i] = 2;
     for (y = 0; y < 8; y++) {
         pixels[y * 8 + 3] = 7;
         pixels[y * 8 + 4] = 7;
@@ -182,7 +181,7 @@ static void makePortalTile(void) {
     int x;
     int y;
 
-    for (i = 0; i < 64; i++) pixels[i] = 2;
+    for (int i = 0; i < 64; i++) pixels[i] = 2;
     for (y = 1; y < 7; y++) {
         for (x = 2; x < 6; x++) {
             pixels[y * 8 + x] = (x == 2 || x == 5 || y == 1 || y == 6) ? 9 : 3;
@@ -197,7 +196,7 @@ static void makeSignTile(void) {
     int x;
     int y;
 
-    for (i = 0; i < 64; i++) pixels[i] = 2;
+    for (int i = 0; i < 64; i++) pixels[i] = 2;
     for (y = 1; y < 4; y++) {
         for (x = 1; x < 7; x++) pixels[y * 8 + x] = 8;
     }
@@ -215,7 +214,7 @@ static void buildPlayerFrame(int baseTile, int accentColor) {
     int ty;
 
     for (tile = 0; tile < 4; tile++) {
-        for (i = 0; i < 64; i++) pixels[i] = 0;
+        for (int i = 0; i < 64; i++) pixels[i] = 0;
 
         tx = (tile % 2) * 8;
         ty = (tile / 2) * 8;
@@ -239,7 +238,7 @@ static void buildSmallSpriteTile(int tileIndex, u8 mainColor, u8 accentColor) {
     int x;
     int y;
 
-    for (i = 0; i < 64; i++) pixels[i] = 0;
+    for (int i = 0; i < 64; i++) pixels[i] = 0;
     for (y = 2; y < 6; y++) {
         for (x = 2; x < 6; x++) pixels[y * 8 + x] = mainColor;
     }
@@ -254,6 +253,11 @@ static void buildSmallSpriteTile(int tileIndex, u8 mainColor, u8 accentColor) {
 void initGame(void) {
     initGraphics();
     initLevelData();
+
+    loadHomeLevelMap();
+    setBackgroundOffset(0, 0, 0);
+    setBackgroundOffset(1, 0, 0);
+    setBackgroundOffset(2, 0, 0);
 
     frameCounter = 0;
     carryingResource = 0;
@@ -292,8 +296,57 @@ void updateGame(void) {
 }
 
 void drawGame(void) {
-    if (state == STATE_HOME || state == STATE_SKY) {
-        drawGameplay();
+    switch (state) {
+        case STATE_START:
+            clearHud();
+            loadHomeLevelMap();
+            setBackgroundOffset(0, 0, 0);
+            setBackgroundOffset(1, 0, 0);
+            setBackgroundOffset(2, 0, 0);
+            drawMenuScreen("BEYOND THE SKY", "PRESS START", "A: NEXT   B: BACK", "SELECT+UP TOGGLE GROW CHEAT");
+            hideSprites();
+            break;
+
+        case STATE_INSTRUCTIONS:
+            clearHud();
+            loadHomeLevelMap();
+            setBackgroundOffset(0, 0, 0);
+            setBackgroundOffset(1, 0, 0);
+            setBackgroundOffset(2, 0, 0);
+            drawMenuScreen("INSTRUCTIONS", "LEFT/RIGHT MOVE  A JUMP", "UP/DOWN CLIMB  START PAUSE", "GET WATER IN SKY LEVEL, RETURN, PRESS B ON SOIL");
+            hideSprites();
+            break;
+
+        case STATE_HOME:
+        case STATE_SKY:
+            drawGameplay();
+            break;
+
+        case STATE_PAUSE:
+            drawPauseScreen();
+            break;
+
+        case STATE_WIN:
+            clearHud();
+            loadHomeLevelMap();
+            setBackgroundOffset(0, 0, 0);
+            setBackgroundOffset(1, 0, 0);
+            setBackgroundOffset(2, 0, 0);
+            drawMenuScreen("YOU WIN", "THE BEANSTALK BLOOMED", "PRESS START TO PLAY AGAIN",
+                instantGrowCheat ? "CHEAT MODE WAS ON" : "CHEAT MODE WAS OFF");
+            hideSprites();
+            break;
+
+        case STATE_LOSE:
+            clearHud();
+            loadHomeLevelMap();
+            setBackgroundOffset(0, 0, 0);
+            setBackgroundOffset(1, 0, 0);
+            setBackgroundOffset(2, 0, 0);
+            drawMenuScreen("YOU WILTED", "HAZARD HIT OR FALL RESET", "PRESS START TO RESPAWN",
+                "THIS STILL COUNTS AS YOUR RESET/KILL OBSTACLE");
+            hideSprites();
+            break;
     }
 
     DMANow(3, shadowOAM, OAM, 128 * 4);

@@ -1,3 +1,4 @@
+#include "game.h"
 #include "levels.h"
 
 u16 homeMap[HOME_MAP_W * HOME_MAP_H];

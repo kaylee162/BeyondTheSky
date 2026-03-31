@@ -6,7 +6,7 @@
 void initMode0(void) {
     // Enable Mode 0, background 0, background 1, and sprites
     // *** CHANGE: enable 1D OBJ tile mapping for correct sprite layout ***
-    REG_DISPCTL = MODE(0) | BG_ENABLE(0) | BG_ENABLE(1) | SPRITE_ENABLE | SPRITE_MODE_1D;
+    REG_DISPCTL = MODE(0) | BG_ENABLE(0) | BG_ENABLE(1) | BG_ENABLE(2) | SPRITE_ENABLE | SPRITE_MODE_1D;
 
     // Clear scroll offsets so backgrounds start at the top-left
     REG_BG0HOFF = 0;

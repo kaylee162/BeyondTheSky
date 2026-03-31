@@ -91,15 +91,26 @@ int getLevelPixelHeight(int level) {
 // ======================================================
 //      INTERNAL HELPER: READ ONE BYTE FROM COLLISION MAP
 // ======================================================
-
-static u8 collisionByteFromBitmap(const unsigned short* bitmap, int mapWidth, int mapHeight, int x, int y) {
+//
+// Important:
+// These collision maps were exported as full 8bpp bitmaps at the
+// actual world pixel size:
+//
+//   homebase  = 256 x 512
+//   level one = 512 x 256
+//   level two = 512 x 256
+//
+// That means each entry in the bitmap already corresponds to ONE
+// world pixel. We should NOT divide x/y by 8 here.
+//
+static u8 collisionByteFromBitmap(const unsigned short* bitmap, int pixelWidth, int pixelHeight, int x, int y) {
     const unsigned char* bytes = (const unsigned char*)bitmap;
 
-    if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) {
+    if (x < 0 || y < 0 || x >= pixelWidth || y >= pixelHeight) {
         return COL_CANNOT_GO;
     }
 
-    return bytes[OFFSET(x, y, mapWidth)];
+    return bytes[OFFSET(x, y, pixelWidth)];
 }
 
 // ======================================================
@@ -107,45 +118,43 @@ static u8 collisionByteFromBitmap(const unsigned short* bitmap, int mapWidth, in
 // ======================================================
 
 u8 collisionAtPixel(int level, int x, int y) {
-    int tileX;
-    int tileY;
-
     if (x < 0 || y < 0) {
         return COL_CANNOT_GO;
     }
 
-    tileX = x >> 3;
-    tileY = y >> 3;
+    // IMPORTANT:
+    // The collision maps are full-size 8bpp bitmaps at world-pixel size.
+    // That means x/y should be used directly.
+    // Do NOT divide by 8 here.
 
     if (level == LEVEL_HOME) {
         return collisionByteFromBitmap(
             homebase_collisionMapBitmap,
-            HOME_MAP_W,
-            HOME_MAP_H,
-            tileX,
-            tileY
+            HOME_PIXEL_W,
+            HOME_PIXEL_H,
+            x,
+            y
         );
     }
 
     if (level == LEVEL_ONE) {
         return collisionByteFromBitmap(
             levelone_collisionMapBitmap,
-            LEVEL1_MAP_W,
-            LEVEL1_MAP_H,
-            tileX,
-            tileY
+            LEVEL1_PIXEL_W,
+            LEVEL1_PIXEL_H,
+            x,
+            y
         );
     }
 
     return collisionByteFromBitmap(
         leveltwo_collisionMapBitmap,
-        LEVEL2_MAP_W,
-        LEVEL2_MAP_H,
-        tileX,
-        tileY
+        LEVEL2_PIXEL_W,
+        LEVEL2_PIXEL_H,
+        x,
+        y
     );
 }
-
 // ======================================================
 //              CONVENIENCE QUERY FUNCTIONS
 // ======================================================

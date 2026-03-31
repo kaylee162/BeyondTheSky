@@ -37,6 +37,8 @@ static void copySpriteBlockFromSheet(const unsigned short* sheetTiles, int sheet
 static void drawHudText(void);
 static void drawMenuScreen(const char* title, const char* line1, const char* line2, const char* line3);
 static void drawPauseScreen(void);
+static void enableGameplayDisplay(void);
+static void enableMenuDisplay(void);
 static void goToStart(void);
 static void goToInstructions(void);
 static void goToHome(int respawn);
@@ -65,6 +67,9 @@ static void hideSprite(int index);
 // Collision / interaction helpers
 static int canMoveTo(int newX, int newY);
 static int onClimbTile(void);
+static int onClimbTileAt(int x, int y);
+static int isStandingOnSolid(void);
+static int findStandingSpawnY(int spawnX, int preferredTopY);
 static int touchesHazard(void);
 static void handleLevelTransitions(void);
 
@@ -181,24 +186,12 @@ void drawGame(void) {
     switch (state) {
         case STATE_START:
             clearHud();
-            configureMapBackgroundsForLevel(LEVEL_HOME);
-            loadLevelMaps(LEVEL_HOME);
-            setBackgroundOffset(0, 0, 0);
-            setBackgroundOffset(1, 0, 0);
-            setBackgroundOffset(2, 0, 0);
             drawMenuScreen("BEYOND THE SKY", "PRESS START", "A: NEXT   B: BACK", "SELECT+LEFT/RIGHT/DOWN = MAP CHEATS");
-            hideSprites();
             break;
 
         case STATE_INSTRUCTIONS:
             clearHud();
-            configureMapBackgroundsForLevel(LEVEL_HOME);
-            loadLevelMaps(LEVEL_HOME);
-            setBackgroundOffset(0, 0, 0);
-            setBackgroundOffset(1, 0, 0);
-            setBackgroundOffset(2, 0, 0);
             drawMenuScreen("INSTRUCTIONS", "ARROWS MOVE", "A JUMP  START PAUSE", "SELECT+LEFT/RIGHT/DOWN TO WARP MAPS");
-            hideSprites();
             break;
 
         case STATE_HOME:
@@ -214,13 +207,11 @@ void drawGame(void) {
         case STATE_WIN:
             clearHud();
             drawMenuScreen("YOU WIN", "PRESS START TO PLAY AGAIN", "", "");
-            hideSprites();
             break;
 
         case STATE_LOSE:
             clearHud();
             drawMenuScreen("YOU LOSE", "PRESS START TO RESPAWN", "", "");
-            hideSprites();
             break;
     }
 }
@@ -228,10 +219,11 @@ void drawGame(void) {
 static void initGraphics(void) {
     initMode0();
 
+    // Start with full gameplay layers enabled by default.
     REG_DISPCTL = MODE(0) | BG_ENABLE(0) | BG_ENABLE(1) | BG_ENABLE(2)
         | SPRITE_ENABLE | SPRITE_MODE_1D;
 
-    // BG0 = HUD text layer
+    // BG0 = HUD / menu text layer
     setupBackground(0, BG_PRIORITY(0) | BG_CHARBLOCK(0) | BG_SCREENBLOCK(HUD_SCREENBLOCK) | BG_4BPP | BG_SIZE_SMALL);
 
     // BG1/BG2 shape gets configured per-level in levels.c
@@ -250,22 +242,45 @@ static void initGraphics(void) {
     initObjAssets();
 }
 
+static void enableGameplayDisplay(void) {
+    // Gameplay needs:
+    // BG0 = HUD text
+    // BG1 = background tilemap
+    // BG2 = foreground tilemap
+    // OBJ = sprites
+    REG_DISPCTL = MODE(0) | BG_ENABLE(0) | BG_ENABLE(1) | BG_ENABLE(2)
+        | SPRITE_ENABLE | SPRITE_MODE_1D;
+}
+
+static void enableMenuDisplay(void) {
+    // Menu/state screens only need BG0 text.
+    // The blue backdrop color will fill the rest of the screen.
+    REG_DISPCTL = MODE(0) | BG_ENABLE(0);
+
+    // Keep menu text positioned correctly.
+    setBackgroundOffset(0, 0, 0);
+
+    // Hide sprites so stale OBJ art never lingers on menu screens.
+    hideSprites();
+}
+
 static void goToStart(void) {
     state = STATE_START;
+    enableMenuDisplay();
     clearHud();
     drawMenuScreen("BEYOND THE SKY", "PRESS START", "A: NEXT   B: BACK", "SELECT+UP TOGGLE GROW CHEAT");
-    hideSprites();
 }
 
 static void goToInstructions(void) {
     state = STATE_INSTRUCTIONS;
+    enableMenuDisplay();
     clearHud();
     drawMenuScreen("INSTRUCTIONS", "LEFT/RIGHT MOVE  A JUMP", "UP/DOWN CLIMB  START PAUSE", "GET WATER IN SKY LEVEL, RETURN, PRESS B ON SOIL");
-    hideSprites();
 }
 
 static void goToHome(int respawn) {
     state = STATE_HOME;
+    enableGameplayDisplay();
     currentLevel = LEVEL_HOME;
     levelWidth = getLevelPixelWidth(currentLevel);
     levelHeight = getLevelPixelHeight(currentLevel);
@@ -274,18 +289,20 @@ static void goToHome(int respawn) {
     loadLevelMaps(currentLevel);
     clearHud();
 
+    player.width = PLAYER_WIDTH;
+    player.height = PLAYER_HEIGHT;
+
     if (!respawn) {
-        // Spawn near the bottom-left of the map.
-        // Ground is 3 tiles tall = 24 pixels.
+        // Home spawn:
+        // You said the player's TOP-LEFT should be about 8 tiles up from the bottom.
+        // Use that as the preferred target, then snap to the nearest valid standing spot.
         player.x = 0;
-        player.y = levelHeight - 24 - PLAYER_HEIGHT;
+        player.y = findStandingSpawnY(player.x, levelHeight - (8 * 8));
     } else {
         player.x = respawnX;
         player.y = respawnY;
     }
 
-    player.width = PLAYER_WIDTH;
-    player.height = PLAYER_HEIGHT;
     player.xVel = 0;
     player.yVel = 0;
     player.grounded = 0;
@@ -299,7 +316,6 @@ static void goToHome(int respawn) {
     respawnX = player.x;
     respawnY = player.y;
 
-    // Start camera at bottom-left of the world.
     hOff = 0;
     vOff = levelHeight - SCREENHEIGHT;
     if (vOff < 0) vOff = 0;
@@ -310,6 +326,7 @@ static void goToHome(int respawn) {
 
 static void goToLevelOne(int respawn) {
     state = STATE_LEVEL1;
+    enableGameplayDisplay();
     currentLevel = LEVEL_ONE;
     levelWidth = getLevelPixelWidth(currentLevel);
     levelHeight = getLevelPixelHeight(currentLevel);
@@ -318,21 +335,26 @@ static void goToLevelOne(int respawn) {
     loadLevelMaps(currentLevel);
     clearHud();
 
+    player.width = PLAYER_WIDTH;
+    player.height = PLAYER_HEIGHT;
+
     if (!respawn) {
-        player.x = 0;
-        player.y = levelHeight - 24 - PLAYER_HEIGHT;
+        // Level 1 spawn:
+        // Spawn on the bottom-right side instead of the left.
+        // Preferred top-left is also about 8 tiles up from the bottom,
+        // then snap to a valid standing position.
+        player.x = levelWidth - player.width;
+        player.y = findStandingSpawnY(player.x, levelHeight - (8 * 8));
     } else {
         player.x = respawnX;
         player.y = respawnY;
     }
 
-    player.width = PLAYER_WIDTH;
-    player.height = PLAYER_HEIGHT;
     player.xVel = 0;
     player.yVel = 0;
     player.grounded = 0;
     player.climbing = 0;
-    player.facingLeft = 0;
+    player.facingLeft = 1;
     player.animFrame = 0;
     player.animCounter = 0;
     player.oldX = player.x;
@@ -341,7 +363,9 @@ static void goToLevelOne(int respawn) {
     respawnX = player.x;
     respawnY = player.y;
 
-    hOff = 0;
+    hOff = levelWidth - SCREENWIDTH;
+    if (hOff < 0) hOff = 0;
+
     vOff = levelHeight - SCREENHEIGHT;
     if (vOff < 0) vOff = 0;
 
@@ -351,6 +375,7 @@ static void goToLevelOne(int respawn) {
 
 static void goToLevelTwo(int respawn) {
     state = STATE_LEVEL2;
+    enableGameplayDisplay();
     currentLevel = LEVEL_TWO;
     levelWidth = getLevelPixelWidth(currentLevel);
     levelHeight = getLevelPixelHeight(currentLevel);
@@ -359,16 +384,21 @@ static void goToLevelTwo(int respawn) {
     loadLevelMaps(currentLevel);
     clearHud();
 
+    player.width = PLAYER_WIDTH;
+    player.height = PLAYER_HEIGHT;
+
     if (!respawn) {
+        // Level 2 spawn:
+        // You wanted this about 10 tiles higher than before.
+        // Old rough baseline was near the bottom, so use that as a reference,
+        // then move up 10 tiles and snap to a valid standing position.
         player.x = 0;
-        player.y = levelHeight - 24 - PLAYER_HEIGHT;
+        player.y = findStandingSpawnY(player.x, (levelHeight - 24 - PLAYER_HEIGHT) - (10 * 8));
     } else {
         player.x = respawnX;
         player.y = respawnY;
     }
 
-    player.width = PLAYER_WIDTH;
-    player.height = PLAYER_HEIGHT;
     player.xVel = 0;
     player.yVel = 0;
     player.grounded = 0;
@@ -383,8 +413,12 @@ static void goToLevelTwo(int respawn) {
     respawnY = player.y;
 
     hOff = 0;
-    vOff = levelHeight - SCREENHEIGHT;
+    vOff = player.y + (player.height / 2) - (SCREENHEIGHT / 2);
+
     if (vOff < 0) vOff = 0;
+    if (vOff > levelHeight - SCREENHEIGHT) {
+        vOff = levelHeight - SCREENHEIGHT;
+    }
 
     setBackgroundOffset(1, hOff, vOff);
     setBackgroundOffset(2, hOff, vOff);
@@ -393,22 +427,24 @@ static void goToLevelTwo(int respawn) {
 static void goToPause(void) {
     gameplayStateBeforePause = state;
     state = STATE_PAUSE;
+    enableMenuDisplay();
+    clearHud();
     drawPauseScreen();
 }
 
 static void goToWin(void) {
     state = STATE_WIN;
+    enableMenuDisplay();
     clearHud();
     drawMenuScreen("YOU WIN", "THE BEANSTALK BLOOMED", "PRESS START TO PLAY AGAIN", instantGrowCheat ? "CHEAT MODE WAS ON" : "CHEAT MODE WAS OFF");
-    hideSprites();
 }
 
 static void goToLose(int levelToReturnTo) {
     loseReturnLevel = levelToReturnTo;
     state = STATE_LOSE;
+    enableMenuDisplay();
     clearHud();
     drawMenuScreen("YOU WILTED", "HAZARD HIT OR FALL RESET", "PRESS START TO RESPAWN", "THIS STILL COUNTS AS YOUR RESET/KILL OBSTACLE");
-    hideSprites();
 }
 
 static void respawnIntoCurrentLevel(void) {
@@ -451,8 +487,10 @@ static void updateLevelTwo(void) {
 static void updatePause(void) {
     if (BUTTON_PRESSED(BUTTON_START)) {
         state = gameplayStateBeforePause;
+        enableGameplayDisplay();
         clearHud();
     }
+
     if (BUTTON_PRESSED(BUTTON_SELECT)) {
         goToStart();
     }
@@ -500,75 +538,163 @@ static void updateGameplayCommon(void) {
 }
 
 static void updatePlayerMovement(void) {
-    int nextX;
-    int nextY;
-    int allowVerticalMovement;
+    int dx = 0;
+    int step;
+    int remaining;
 
     player.oldX = player.x;
     player.oldY = player.y;
 
-    nextX = player.x;
-    nextY = player.y;
+    // --------------------------------------------------
+    // Check whether the player is standing on solid ground
+    // --------------------------------------------------
+    player.grounded = isStandingOnSolid();
 
     // --------------------------------------------------
     // Horizontal movement
     // --------------------------------------------------
     if (BUTTON_HELD(BUTTON_LEFT)) {
-        nextX -= MOVE_SPEED;
+        dx -= MOVE_SPEED;
         player.facingLeft = 1;
     }
 
     if (BUTTON_HELD(BUTTON_RIGHT)) {
-        nextX += MOVE_SPEED;
+        dx += MOVE_SPEED;
         player.facingLeft = 0;
     }
 
     // --------------------------------------------------
-    // Vertical movement only on climb tiles
+    // Climbing logic
+    //
+    // Holding UP while touching a climb tile should begin climbing.
+    // Once climbing, UP continues climbing upward and DOWN climbs down.
     // --------------------------------------------------
-    allowVerticalMovement = onClimbTile();
-
-    if (BUTTON_HELD(BUTTON_UP)) {
-        int testCenterX = player.x + (player.width / 2);
-        int testY = player.y - MOVE_SPEED + (player.height / 2);
-
-        if (allowVerticalMovement || isClimbPixel(currentLevel, testCenterX, testY)) {
-            nextY -= MOVE_SPEED;
-            player.climbing = 1;
-        }
-    }
-
-    if (BUTTON_HELD(BUTTON_DOWN)) {
-        int testCenterX = player.x + (player.width / 2);
-        int testY = player.y + MOVE_SPEED + (player.height / 2);
-
-        if (allowVerticalMovement || isClimbPixel(currentLevel, testCenterX, testY)) {
-            nextY += MOVE_SPEED;
-            player.climbing = 1;
-        }
-    }
-
-    if (!BUTTON_HELD(BUTTON_UP) && !BUTTON_HELD(BUTTON_DOWN)) {
+    if (BUTTON_HELD(BUTTON_UP) && onClimbTile()) {
+        player.climbing = 1;
+        player.yVel = 0;
+        player.grounded = 0;
+    } else if (!onClimbTile()) {
+        // Only force climbing off when the player is no longer
+        // touching the climb area at all.
         player.climbing = 0;
     }
 
     // --------------------------------------------------
-    // Clamp to map bounds
+    // Jump logic
+    //
+    // If the player is grounded and presses UP while NOT on a climb tile,
+    // jump. This prevents jump/climb conflict on ladders/beanstalks.
     // --------------------------------------------------
-    if (nextX < 0) nextX = 0;
-    if (nextY < 0) nextY = 0;
-    if (nextX > levelWidth - player.width) nextX = levelWidth - player.width;
-    if (nextY > levelHeight - player.height) nextY = levelHeight - player.height;
-
-    // --------------------------------------------------
-    // Resolve movement axis-by-axis
-    // --------------------------------------------------
-    if (canMoveTo(nextX, player.y)) {
-        player.x = nextX;
+    if (!player.climbing && BUTTON_PRESSED(BUTTON_UP) && player.grounded && !onClimbTile()) {
+        player.yVel = JUMP_VEL;
+        player.grounded = 0;
     }
 
-    if (canMoveTo(player.x, nextY)) {
-        player.y = nextY;
+    // --------------------------------------------------
+    // Gravity / falling
+    // --------------------------------------------------
+    if (!player.climbing) {
+        if (!player.grounded || player.yVel < 0) {
+            player.yVel += GRAVITY;
+            if (player.yVel > MAX_FALL_SPEED) {
+                player.yVel = MAX_FALL_SPEED;
+            }
+        } else {
+            player.yVel = 0;
+        }
+    }
+
+    // --------------------------------------------------
+    // Horizontal movement resolution, 1 pixel at a time
+    // --------------------------------------------------
+    if (dx != 0) {
+        step = (dx > 0) ? 1 : -1;
+        remaining = (dx > 0) ? dx : -dx;
+
+        while (remaining > 0) {
+            if (canMoveTo(player.x + step, player.y)) {
+                player.x += step;
+            } else {
+                break;
+            }
+            remaining--;
+        }
+    }
+
+    // --------------------------------------------------
+    // Vertical movement while climbing
+    // --------------------------------------------------
+    if (player.climbing) {
+        int climbDy = 0;
+
+        if (BUTTON_HELD(BUTTON_UP)) {
+            climbDy -= CLIMB_SPEED;
+        }
+        if (BUTTON_HELD(BUTTON_DOWN)) {
+            climbDy += CLIMB_SPEED;
+        }
+
+        if (climbDy != 0) {
+            step = (climbDy > 0) ? 1 : -1;
+            remaining = (climbDy > 0) ? climbDy : -climbDy;
+
+            while (remaining > 0) {
+                // Keep allowing motion while the player is still touching
+                // the climb region at the new position.
+                if (canMoveTo(player.x, player.y + step) &&
+                    onClimbTileAt(player.x, player.y + step)) {
+                    player.y += step;
+                } else {
+                    break;
+                }
+                remaining--;
+            }
+        }
+    } else {
+        // --------------------------------------------------
+        // Vertical movement from jump / gravity
+        // --------------------------------------------------
+        if (player.yVel != 0) {
+            step = (player.yVel > 0) ? 1 : -1;
+            remaining = (player.yVel > 0) ? player.yVel : -player.yVel;
+
+            while (remaining > 0) {
+                if (canMoveTo(player.x, player.y + step)) {
+                    player.y += step;
+                } else {
+                    if (step > 0) {
+                        player.grounded = 1;
+                    }
+                    player.yVel = 0;
+                    break;
+                }
+                remaining--;
+            }
+        }
+    }
+
+    // --------------------------------------------------
+    // Clamp to world bounds
+    // --------------------------------------------------
+    if (player.x < 0) {
+        player.x = 0;
+    }
+    if (player.y < 0) {
+        player.y = 0;
+    }
+    if (player.x > levelWidth - player.width) {
+        player.x = levelWidth - player.width;
+    }
+    if (player.y > levelHeight - player.height) {
+        player.y = levelHeight - player.height;
+    }
+
+    // Final grounded check
+    if (!player.climbing) {
+        player.grounded = isStandingOnSolid();
+        if (player.grounded && player.yVel > 0) {
+            player.yVel = 0;
+        }
     }
 }
 
@@ -600,18 +726,87 @@ static void updateCamera(void) {
 }
 
 static int canMoveTo(int newX, int newY) {
-    // Check all four corners of the player's hitbox.
     return !isBlockedPixel(currentLevel, newX, newY)
         && !isBlockedPixel(currentLevel, newX + player.width - 1, newY)
         && !isBlockedPixel(currentLevel, newX, newY + player.height - 1)
         && !isBlockedPixel(currentLevel, newX + player.width - 1, newY + player.height - 1);
 }
 
-static int onClimbTile(void) {
-    int centerX = player.x + (player.width / 2);
-    int centerY = player.y + (player.height / 2);
+static int findStandingSpawnY(int spawnX, int preferredTopY) {
+    int y;
+    int clampedX;
+    int clampedPreferredY;
+    int leftFootX;
+    int rightFootX;
 
-    return isClimbPixel(currentLevel, centerX, centerY);
+    // Keep x inside the world
+    clampedX = CLAMP(spawnX, 0, levelWidth - player.width);
+
+    // Keep preferred y inside the world
+    clampedPreferredY = CLAMP(preferredTopY, 0, levelHeight - player.height);
+
+    leftFootX = clampedX + 2;
+    rightFootX = clampedX + player.width - 3;
+
+    // First search downward from the preferred position
+    // until we find a valid open spot with solid ground under the feet.
+    for (y = clampedPreferredY; y <= levelHeight - player.height; y++) {
+        if (canMoveTo(clampedX, y) &&
+            (y + player.height >= levelHeight ||
+             isBlockedPixel(currentLevel, leftFootX, y + player.height) ||
+             isBlockedPixel(currentLevel, rightFootX, y + player.height))) {
+            return y;
+        }
+    }
+
+    // If that failed, search upward.
+    for (y = clampedPreferredY - 1; y >= 0; y--) {
+        if (canMoveTo(clampedX, y) &&
+            (y + player.height >= levelHeight ||
+             isBlockedPixel(currentLevel, leftFootX, y + player.height) ||
+             isBlockedPixel(currentLevel, rightFootX, y + player.height))) {
+            return y;
+        }
+    }
+
+    // Fallback: just clamp it.
+    return clampedPreferredY;
+}
+
+static int onClimbTile(void) {
+    return onClimbTileAt(player.x, player.y);
+}
+
+static int onClimbTileAt(int x, int y) {
+    int centerX = x + (player.width / 2);
+
+    // Sample multiple points vertically through the player's body.
+    // This is much more reliable for ladders / beanstalks than checking
+    // only one center point.
+    int topY    = y + 2;
+    int upperY  = y + 8;
+    int midY    = y + (player.height / 2);
+    int lowerY  = y + player.height - 8;
+    int footY   = y + player.height - 2;
+
+    return isClimbPixel(currentLevel, centerX, topY)
+        || isClimbPixel(currentLevel, centerX, upperY)
+        || isClimbPixel(currentLevel, centerX, midY)
+        || isClimbPixel(currentLevel, centerX, lowerY)
+        || isClimbPixel(currentLevel, centerX, footY);
+}
+
+static int isStandingOnSolid(void) {
+    int leftFootX  = player.x + 2;
+    int rightFootX = player.x + player.width - 3;
+    int belowY     = player.y + player.height;
+
+    if (belowY >= levelHeight) {
+        return 1;
+    }
+
+    return isBlockedPixel(currentLevel, leftFootX, belowY)
+        || isBlockedPixel(currentLevel, rightFootX, belowY);
 }
 
 static int touchesHazard(void) {
@@ -732,9 +927,9 @@ static void drawHudText(void) {
         putText(1, 1, "LEVEL 2");
     }
 
-    putText(1, 3, "SEL+DOWN  HOME");
-    putText(1, 5, "SEL+LEFT  LV1");
-    putText(1, 7, "SEL+RIGHT LV2");
+    putText(1, 3, "UP JUMP");
+    putText(1, 5, "A+VINE CLIMB");
+    putText(1, 7, "START PAUSE");
 }
 
 static void drawMenuScreen(const char* title, const char* line1, const char* line2, const char* line3) {

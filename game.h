@@ -30,7 +30,7 @@
 #define BEE_SIZE            8
 
 #define GRAVITY             1
-#define JUMP_VEL           -8
+#define JUMP_VEL           -12
 #define MAX_FALL_SPEED      4
 #define MOVE_SPEED          2
 #define CLIMB_SPEED         1
@@ -43,7 +43,6 @@
 // ======================================================
 
 // These are other sprite tile indices in OBJ memory.
-// Keep these only if your sprite-loading code still uses them.
 #define OBJ_TILE_ITEM       8
 #define OBJ_TILE_BEE0       9
 #define OBJ_TILE_BEE1       10
@@ -73,7 +72,7 @@
 // Row 2 on sheet: up     animations (climbing up)
 // Row 3 on sheet: down   animations (falling / climbing down)
 //
-// Sheet top-lefts you gave:
+// Sheet top-lefts (for reference):
 // right row starts at (0, 0)
 // left  row starts at (0, 4)
 // up    row starts at (0, 8)
@@ -127,12 +126,26 @@
 #define OBJ_INDEX_PLAYER        0
 #define OBJ_INDEX_BEAN_TOP      1
 #define OBJ_INDEX_BEAN_BOTTOM   2
+#define OBJ_INDEX_BONEMEAL      3
+#define OBJ_INDEX_WATER         4
+
+
+// Bonemeal and Water Droplet Rescourse sprites
+// Bonemeal and water droplet are both 2 tiles wide x 2 tiles tall = 16x16.
+#define RESOURCE_WIDTH           16
+#define RESOURCE_HEIGHT          16
+#define RESOURCE_ANIM_FRAMES      2
+#define RESOURCE_TILES_PER_FRAME  4   // 2 x 2 tiles
+
+// Put these right after the bean sprout tiles in OBJ memory.
+#define OBJ_TILE_BONEMEAL        (OBJ_TILE_BEAN_SPROUT + BEAN_SPROUT_TILES)
+#define OBJ_TILE_WATER           (OBJ_TILE_BONEMEAL + RESOURCE_ANIM_FRAMES * RESOURCE_TILES_PER_FRAME)
 
 // ======================================================
 //                    INVENTORY FLAGS
 // ======================================================
 
-// These are bit flags so the inventory can hold multiple items later.
+// Bit flags so the inventory can hold multiple items
 #define INVENTORY_BEAN_SPROUT   (1 << 0)
 #define INVENTORY_BONEMEAL      (1 << 1)
 #define INVENTORY_WATER         (1 << 2)
@@ -152,8 +165,8 @@
 //   2. top/platform portal
 //
 // For the Y positions, we use "preferred Y" values.
-// The game will scan from that Y to find a safe standing spot.
-// That is more reliable than hard-coding exact top-Y values.
+// The game will scan from that Y to find a safe standing spot so things
+// aren't floating or inside platforms
 // ------------------------------------------------------
 
 // HOME -> LEVEL 1 (bottom/original portal)
@@ -161,7 +174,6 @@
 #define LEVEL1_FROM_HOME_BOTTOM_PREF_Y      (LEVEL1_PIXEL_H - (8 * 8))
 
 // HOME -> LEVEL 1 (top/platform portal)
-// Adjust these if your top entry in level one should land somewhere else.
 #define LEVEL1_FROM_HOME_TOP_SPAWN_X        (60 * 8)
 #define LEVEL1_FROM_HOME_TOP_PREF_Y         (8 * 8)
 
@@ -170,7 +182,6 @@
 #define HOME_FROM_LEVEL1_BOTTOM_PREF_Y      (HOME_PIXEL_H - (8 * 8))
 
 // LEVEL 1 -> HOME (top/platform return)
-// Adjust these if your upper platform in home is at a different x/y region.
 #define HOME_FROM_LEVEL1_TOP_SPAWN_X        (6 * 8)
 #define HOME_FROM_LEVEL1_TOP_PREF_Y         (LEVEL1_PIXEL_H - (8 * 8))
 // ------------------------------------------------------
@@ -182,11 +193,23 @@
 // Return position in HOME when coming back from Level 2
 #define HOME_FROM_LEVEL2_SPAWN_X            (29 * 8)
 #define HOME_FROM_LEVEL2_SPAWN_Y            (22 * 8)
+
+// ------------------------------------------------------
+// LEVEL RESOURCE SPAWNS
+// ------------------------------------------------------
+// Level 1 bonemeal: near the left side of the level.
+#define LEVEL1_BONEMEAL_SPAWN_X          (6 * 8)
+
+// Level 2 water droplet: near the right side of the level.
+#define LEVEL2_WATER_SPAWN_X             (LEVEL2_PIXEL_W - (6 * 8))
+
+// Put the droplet about 2/3 of the way up the level.
+#define LEVEL2_WATER_SPAWN_Y             (12 * 8)
 // ======================================================
 //                    COLORS / PALETTE HELPERS
 // ======================================================
 
-// Teal background color you wanted.
+// Teal background color
 // This is useful for the backdrop color / palette index 0.
 #define SKY_COLOR           RGB(0, 23, 31)
 
@@ -232,6 +255,12 @@ typedef struct {
     int x;
     int y;
     int active;
+
+    // Simple 2-frame animation state for floating collectibles.
+    int animFrame;
+    int animCounter;
+
+    // Optional bob value kept here in case you want vertical floating later.
     int bob;
 } ResourceItem;
 
@@ -251,5 +280,8 @@ typedef struct {
 void initGame(void);
 void updateGame(void);
 void drawGame(void);
+
+// Cheats
+extern int invincibilityCheat;
 
 #endif

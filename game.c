@@ -15,8 +15,10 @@ static int levelHeight;
 
 static Player player;
 
-// Bean sprout collectible in the home world.
+// World collectibles
 static ResourceItem beanSprout;
+static ResourceItem bonemeal;
+static ResourceItem waterDroplet;
 
 static int hOff;
 static int vOff;
@@ -26,12 +28,15 @@ static int frameCounter;
 // Inventory bitmask.
 static int inventoryFlags;
 
-static int instantGrowCheat;
-
 static int respawnX;
 static int respawnY;
 static int respawnPreferredY;
 static int loseReturnLevel;
+
+// Cheats
+int cheatModeEnabled;
+int instantGrowCheat;
+int invincibilityCheat;
 
 // Small upward launch when the player reaches the top of a ladder / vine.
 // This helps them "hop" onto the platform instead of getting stuck.
@@ -77,7 +82,10 @@ static void drawSprites(void);
 static void hideSprite(int index);
 
 static void initBeanSprout(void);
+static void initBonemeal(void);
+static void initWaterDroplet(void);
 static void updateCollectibles(void);
+static void updateCollectibleAnimations(void);
 static int rectsOverlap(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh);
 static const char* getInventoryText(void);
 
@@ -90,6 +98,8 @@ static int tryStartLadderTopExit(void);
 static int isStandingOnSolid(void);
 static int findStandingSpawnY(int spawnX, int preferredTopY);
 static int touchesHazard(void);
+static int fellOutOfLevel(void);
+static void recoverFromInvincibleFall(void);
 static int touchesWinTile(void);
 static void handleLevelTransitions(void);
 static void putText(int col, int row, const char* str);
@@ -218,6 +228,48 @@ static void initObjAssets(void) {
         2, 3,
         OBJ_TILE_BEAN_SPROUT
     );
+
+        // --------------------------------------------------
+    // Copy bonemeal sprite art
+    //
+    // Frame 0 top-left = (0, 19)
+    // Frame 1 top-left = (2, 19)
+    // Each frame is 2x2 tiles = 16x16
+    // --------------------------------------------------
+    copySpriteBlockFromSheet(
+        spriteSheetTiles, 32,
+        0, 19,
+        2, 2,
+        OBJ_TILE_BONEMEAL
+    );
+
+    copySpriteBlockFromSheet(
+        spriteSheetTiles, 32,
+        2, 19,
+        2, 2,
+        OBJ_TILE_BONEMEAL + RESOURCE_TILES_PER_FRAME
+    );
+
+    // --------------------------------------------------
+    // Copy water droplet sprite art
+    //
+    // Frame 0 top-left = (3, 19)
+    // Frame 1 top-left = (5, 19)
+    // Each frame is 2x2 tiles = 16x16
+    // --------------------------------------------------
+    copySpriteBlockFromSheet(
+        spriteSheetTiles, 32,
+        4, 19,
+        2, 2,
+        OBJ_TILE_WATER
+    );
+
+    copySpriteBlockFromSheet(
+        spriteSheetTiles, 32,
+        6, 19,
+        2, 2,
+        OBJ_TILE_WATER + RESOURCE_TILES_PER_FRAME
+    );
 }
 
 // ======================================================
@@ -230,6 +282,8 @@ void initGame(void) {
     frameCounter = 0;
     inventoryFlags = 0;
     instantGrowCheat = 0;
+    invincibilityCheat = 0;
+    cheatModeEnabled = 0;
 
     currentLevel = LEVEL_HOME;
     levelWidth = getLevelPixelWidth(currentLevel);
@@ -484,6 +538,10 @@ static void goToLevelOne(int respawn) {
     respawnX = player.x;
     respawnY = player.y;
 
+    // Rebuild the Level 1 collectible each time the level is loaded.
+    // If it was already collected, initBonemeal() keeps it hidden.
+    initBonemeal();
+
     hOff = levelWidth - SCREENWIDTH;
     if (hOff < 0) hOff = 0;
 
@@ -532,6 +590,10 @@ static void goToLevelTwo(int respawn) {
 
     respawnX = player.x;
     respawnY = player.y;
+
+    // Rebuild the Level 2 collectible each time the level is loaded.
+    // If it was already collected, initWaterDroplet() keeps it hidden.
+    initWaterDroplet();
 
     hOff = 0;
     vOff = player.y + (player.height / 2) - (SCREENHEIGHT / 2);
@@ -598,6 +660,10 @@ static void updateInstructions(void) {
         goToStart();
     }
     if (BUTTON_PRESSED(BUTTON_START) || BUTTON_PRESSED(BUTTON_A)) {
+        // Start a completely fresh run from home.
+        inventoryFlags = 0;
+        instantGrowCheat = 0;
+        invincibilityCheat = 0;   // <-- ADD THIS LINE
         goToHome(0);
     }
 }
@@ -642,6 +708,8 @@ static void updateWin(void) {
     if (BUTTON_PRESSED(BUTTON_START)) {
         // Fresh run after winning.
         inventoryFlags = 0;
+        instantGrowCheat = 0;
+        invincibilityCheat = 0; 
         goToStart();
     }
 }
@@ -657,9 +725,18 @@ static void updateGameplayCommon(void) {
         return;
     }
 
-    // Optional cheat toggle
+    // Optional cheat toggle: instant grow
     if (BUTTON_PRESSED(BUTTON_SELECT) && BUTTON_HELD(BUTTON_UP)) {
         instantGrowCheat = !instantGrowCheat;
+    }
+
+    // Toggle cheat mode on/off with SELECT + B.
+    // This is a latched toggle, so the player only has to press it once.
+    if (BUTTON_HELD(BUTTON_SELECT) && BUTTON_PRESSED(BUTTON_B)) {
+        cheatModeEnabled = !cheatModeEnabled;
+
+        // Sync individual cheats to the master cheat mode toggle.
+        invincibilityCheat = cheatModeEnabled;
     }
 
     // Move the player first
@@ -668,7 +745,10 @@ static void updateGameplayCommon(void) {
     // Check item pickups after movement.
     updateCollectibles();
 
-    // Then update the animation based on the movement result
+    // Animate any active world collectibles.
+    updateCollectibleAnimations();
+
+    // Then update the player animation based on the movement result.
     updatePlayerAnimation();
 
     // Check for transition tiles after movement
@@ -684,7 +764,20 @@ static void updateGameplayCommon(void) {
     }
 
     // Hazard / death check
-    if (touchesHazard() || player.y > levelHeight + 16) {
+    //
+    // Normal play:
+    // - hazard tiles kill the player
+    // - falling out of the level kills the player
+    //
+    // Invincibility cheat:
+    // - hazard tiles are ignored
+    // - falling out of the level snaps the player back to the current respawn
+    if (invincibilityCheat) {
+        if (fellOutOfLevel()) {
+            recoverFromInvincibleFall();
+            return;
+        }
+    } else if (touchesHazard() || fellOutOfLevel()) {
         goToLose(currentLevel);
         return;
     }
@@ -881,9 +974,6 @@ static void updatePlayerMovement(void) {
     if (player.x > levelWidth - player.width) {
         player.x = levelWidth - player.width;
     }
-    if (player.y > levelHeight - player.height) {
-        player.y = levelHeight - player.height;
-    }
 
     // --------------------------------------------------
     // Final grounded check
@@ -960,11 +1050,37 @@ static void updateCamera(void) {
 //                COLLISION / WORLD QUERY HELPERS
 // ======================================================
 static int canMoveTo(int newX, int newY) {
-    // Test the four corners of the player hitbox against blocked collision pixels.
+    // Test the player hitbox against blocked collision pixels.
+    //
+    // Special case:
+    // once the player starts falling below the bottom edge of the level,
+    // treat that space as open so they can fully fall out of the map.
+    // That allows normal fall deaths and invincibility-cheat recovery
+    // to work instead of getting stuck on the bottom boundary.
+    int rightX = newX + player.width - 1;
+    int bottomY = newY + player.height - 1;
+
+    if (newX < 0 || rightX >= levelWidth || newY < 0) {
+        return 0;
+    }
+
+    // Fully below the level: allow movement
+    if (newY >= levelHeight) {
+        return 1;
+    }
+
+    // Partially below the level:
+    // only test the top corners that are still inside the map
+    if (bottomY >= levelHeight) {
+        return !isBlockedPixel(currentLevel, newX, newY)
+            && !isBlockedPixel(currentLevel, rightX, newY);
+    }
+
+    // Normal full 4-corner collision test
     return !isBlockedPixel(currentLevel, newX, newY)
-        && !isBlockedPixel(currentLevel, newX + player.width - 1, newY)
-        && !isBlockedPixel(currentLevel, newX, newY + player.height - 1)
-        && !isBlockedPixel(currentLevel, newX + player.width - 1, newY + player.height - 1);
+        && !isBlockedPixel(currentLevel, rightX, newY)
+        && !isBlockedPixel(currentLevel, newX, bottomY)
+        && !isBlockedPixel(currentLevel, rightX, bottomY);
 }
 
 static int findStandingSpawnY(int spawnX, int preferredTopY) {
@@ -1126,6 +1242,32 @@ static int touchesHazard(void) {
         || isHazardPixel(currentLevel, midX, midY);
 }
 
+static int fellOutOfLevel(void) {
+    // Give the player a little extra room below the map before treating
+    // it as a true fall-out. This feels better than triggering instantly.
+    return player.y > levelHeight + 16;
+}
+
+static void recoverFromInvincibleFall(void) {
+    // With invincibility enabled, falling out of the level should not kill
+    // the player. Snap them back to the current level respawn instead.
+    player.x = CLAMP(respawnX, 0, levelWidth - player.width);
+    player.y = CLAMP(respawnY, 0, levelHeight - player.height);
+
+    player.xVel = 0;
+    player.yVel = 0;
+    player.grounded = 0;
+    player.climbing = 0;
+    player.isMoving = 0;
+    player.animFrame = 0;
+    player.animCounter = 0;
+    player.oldX = player.x;
+    player.oldY = player.y;
+
+    // Recenter the camera immediately after the rescue
+    updateCamera();
+}
+
 static int touchesWinTile(void) {
     int leftFootX  = player.x + 2;
     int centerX    = player.x + (player.width / 2);
@@ -1264,6 +1406,40 @@ static void initBeanSprout(void) {
     beanSprout.bob = 0;
 }
 
+static void initBonemeal(void) {
+    // Place bonemeal near the left side of Level 1, sitting on the ground.
+    int playerGroundY;
+
+    bonemeal.x = LEVEL1_BONEMEAL_SPAWN_X;
+
+    // Use the same ground-placement idea as the bean sprout:
+    // find the top Y where a player could stand, then convert that to ground Y.
+    playerGroundY = findStandingSpawnY(bonemeal.x, levelHeight - (8 * 8)) + PLAYER_HEIGHT;
+    bonemeal.y = playerGroundY - RESOURCE_HEIGHT;
+
+    // Hide if already collected.
+    bonemeal.active = ((inventoryFlags & INVENTORY_BONEMEAL) == 0);
+
+    // Start animation on frame 0.
+    bonemeal.animFrame = 0;
+    bonemeal.animCounter = 0;
+    bonemeal.bob = 0;
+}
+
+static void initWaterDroplet(void) {
+    // Place the water droplet near the right side of Level 2.
+    waterDroplet.x = LEVEL2_WATER_SPAWN_X;
+    waterDroplet.y = LEVEL2_WATER_SPAWN_Y;
+
+    // Hide if already collected.
+    waterDroplet.active = ((inventoryFlags & INVENTORY_WATER) == 0);
+
+    // Start animation on frame 0.
+    waterDroplet.animFrame = 0;
+    waterDroplet.animCounter = 0;
+    waterDroplet.bob = 0;
+}
+
 // Basic AABB collision helper for item pickup.
 static int rectsOverlap(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh) {
     // Simple axis-aligned bounding box overlap test for pickups.
@@ -1273,25 +1449,68 @@ static int rectsOverlap(int ax, int ay, int aw, int ah, int bx, int by, int bw, 
            ay + ah > by;
 }
 
-// --------------------------------------------------
-// Collectibles update
-//
-// For now this only handles the bean sprout.
-// Later add bonemeal and water droplet HERE
-// --------------------------------------------------
 static void updateCollectibles(void) {
-    // Handle item pickup logic for collectibles currently active in the world.
-    // Bean sprout only exists in homebase.
+    // Handle item pickup logic for all active collectibles in the world.
+
+    // --------------------------------------------------
+    // Bean sprout pickup in home
+    // --------------------------------------------------
     if (currentLevel == LEVEL_HOME && beanSprout.active) {
         if (rectsOverlap(
                 player.x, player.y, player.width, player.height,
                 beanSprout.x, beanSprout.y, BEAN_SPROUT_WIDTH, BEAN_SPROUT_HEIGHT)) {
 
-            // Mark bean sprout as collected.
+            // Mark bean sprout as collected and hide it.
             inventoryFlags |= INVENTORY_BEAN_SPROUT;
-
-            // Hide it from the world.
             beanSprout.active = 0;
+        }
+    }
+
+    // --------------------------------------------------
+    // Bonemeal pickup in Level 1
+    // --------------------------------------------------
+    if (currentLevel == LEVEL_ONE && bonemeal.active) {
+        if (rectsOverlap(
+                player.x, player.y, player.width, player.height,
+                bonemeal.x, bonemeal.y, RESOURCE_WIDTH, RESOURCE_HEIGHT)) {
+
+            // Mark bonemeal as collected and hide it.
+            inventoryFlags |= INVENTORY_BONEMEAL;
+            bonemeal.active = 0;
+        }
+    }
+
+    // --------------------------------------------------
+    // Water droplet pickup in Level 2
+    // --------------------------------------------------
+    if (currentLevel == LEVEL_TWO && waterDroplet.active) {
+        if (rectsOverlap(
+                player.x, player.y, player.width, player.height,
+                waterDroplet.x, waterDroplet.y, RESOURCE_WIDTH, RESOURCE_HEIGHT)) {
+
+            // Mark water as collected and hide it.
+            inventoryFlags |= INVENTORY_WATER;
+            waterDroplet.active = 0;
+        }
+    }
+}
+
+static void updateCollectibleAnimations(void) {
+    // Slowly toggle each active collectible between its 2 animation frames.
+    // Higher threshold = slower animation.
+    if (currentLevel == LEVEL_ONE && bonemeal.active) {
+        bonemeal.animCounter++;
+        if (bonemeal.animCounter >= 20) {
+            bonemeal.animCounter = 0;
+            bonemeal.animFrame = (bonemeal.animFrame + 1) % RESOURCE_ANIM_FRAMES;
+        }
+    }
+
+    if (currentLevel == LEVEL_TWO && waterDroplet.active) {
+        waterDroplet.animCounter++;
+        if (waterDroplet.animCounter >= 20) {
+            waterDroplet.animCounter = 0;
+            waterDroplet.animFrame = (waterDroplet.animFrame + 1) % RESOURCE_ANIM_FRAMES;
         }
     }
 }
@@ -1420,8 +1639,58 @@ static void drawSprites(void) {
         hideSprite(OBJ_INDEX_BEAN_BOTTOM);
     }
 
+    // --------------------------------------------------
+    // Draw bonemeal in Level 1
+    // --------------------------------------------------
+    if (currentLevel == LEVEL_ONE && bonemeal.active) {
+        int itemScreenX = bonemeal.x - hOff;
+        int itemScreenY = bonemeal.y - vOff;
+        int tileBase = OBJ_TILE_BONEMEAL + bonemeal.animFrame * RESOURCE_TILES_PER_FRAME;
+
+        if (itemScreenX < -RESOURCE_WIDTH || itemScreenX >= SCREENWIDTH ||
+            itemScreenY < -RESOURCE_HEIGHT || itemScreenY >= SCREENHEIGHT) {
+            hideSprite(OBJ_INDEX_BONEMEAL);
+        } else {
+            shadowOAM[OBJ_INDEX_BONEMEAL].attr0 =
+                ATTR0_Y(itemScreenY) | ATTR0_SQUARE | ATTR0_4BPP;
+            shadowOAM[OBJ_INDEX_BONEMEAL].attr1 =
+                ATTR1_X(itemScreenX) | ATTR1_SMALL;
+            shadowOAM[OBJ_INDEX_BONEMEAL].attr2 =
+                ATTR2_TILEID(tileBase)
+                | ATTR2_PRIORITY(0)
+                | ATTR2_PALROW(WORLD_SPRITE_PALROW);
+        }
+    } else {
+        hideSprite(OBJ_INDEX_BONEMEAL);
+    }
+
+    // --------------------------------------------------
+    // Draw water droplet in Level 2
+    // --------------------------------------------------
+    if (currentLevel == LEVEL_TWO && waterDroplet.active) {
+        int itemScreenX = waterDroplet.x - hOff;
+        int itemScreenY = waterDroplet.y - vOff;
+        int tileBase = OBJ_TILE_WATER + waterDroplet.animFrame * RESOURCE_TILES_PER_FRAME;
+
+        if (itemScreenX < -RESOURCE_WIDTH || itemScreenX >= SCREENWIDTH ||
+            itemScreenY < -RESOURCE_HEIGHT || itemScreenY >= SCREENHEIGHT) {
+            hideSprite(OBJ_INDEX_WATER);
+        } else {
+            shadowOAM[OBJ_INDEX_WATER].attr0 =
+                ATTR0_Y(itemScreenY) | ATTR0_SQUARE | ATTR0_4BPP;
+            shadowOAM[OBJ_INDEX_WATER].attr1 =
+                ATTR1_X(itemScreenX) | ATTR1_SMALL;
+            shadowOAM[OBJ_INDEX_WATER].attr2 =
+                ATTR2_TILEID(tileBase)
+                | ATTR2_PRIORITY(0)
+                | ATTR2_PALROW(WORLD_SPRITE_PALROW);
+        }
+    } else {
+        hideSprite(OBJ_INDEX_WATER);
+    }
+
     // Hide everything else
-    for (int i = 3; i < 128; i++) {
+    for (int i = 5; i < 128; i++) {
         hideSprite(i);
     }
 }
@@ -1444,6 +1713,11 @@ static void drawHudText(void) {
         putText(1, 1, "LEVEL 1");
     } else {
         putText(1, 1, "LEVEL 2");
+    }
+
+    // Show cheat status only when cheat mode is enabled.
+    if (cheatModeEnabled) {
+        putText(16, 1, "CHEATS ENABLED");
     }
 
     // Inventory HUD

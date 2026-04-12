@@ -24,6 +24,10 @@ static ResourceItem beanSprout;
 static ResourceItem bonemeal;
 static ResourceItem waterDroplet;
 
+// Enemy bees
+static Bee bees[3];
+static int beeCount;
+
 static int hOff;
 static int vOff;
 static int cloudScrollX;
@@ -91,7 +95,11 @@ static void hideSprite(int index);
 static void initBeanSprout(void);
 static void initBonemeal(void);
 static void initWaterDroplet(void);
+static void initBee(Bee* bee, int x, int y, int patrolRange, int startDir);
+static void initLevelBees(void);
+static void updateBees(void);
 static void updateCollectibles(void);
+
 static void updateCollectibleAnimations(void);
 static int rectsOverlap(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh);
 static const char* getInventoryText(void);
@@ -103,6 +111,8 @@ static void refreshHomeBeanstalkVisuals(void);
 static int isPlayerAtFarmland(void);
 static void tryDepositResource(void);
 static int canUseCurrentClimbPixel(int x, int y);
+static int beeBodyHitsSolidAt(int x, int y);
+static int canBeeMoveTo(int newX, int newY);
 static int getCloudMapWidth(void);
 static void applyBackgroundOffsets(void);
 
@@ -121,6 +131,7 @@ static int tryStartLadderTopExit(void);
 static int isStandingOnSolid(void);
 static int findStandingSpawnY(int spawnX, int preferredTopY);
 static int touchesHazard(void);
+static int playerTouchesBee(void);
 static int fellOutOfLevel(void);
 static void recoverFromInvincibleFall(void);
 static int touchesWinTile(void);
@@ -376,6 +387,23 @@ static void initObjAssets(void) {
         2, 2,
         OBJ_TILE_WATER + RESOURCE_TILES_PER_FRAME
     );
+
+    // --------------------------------------------------
+    // Copy bee enemy sprite art
+    //
+    // Frame 0 top-left = (0, 16)
+    // Frame 1 top-left = (2, 16)
+    // Frame 2 top-left = (4, 16)
+    // Each frame is 2x3 tiles = 16x24
+    // --------------------------------------------------
+    for (int frame = 0; frame < BEE_ANIM_FRAMES; frame++) {
+        copySpriteBlockFromSheet(
+            spriteSheetTiles, 32,
+            frame * 2, 16,
+            2, 3,
+            OBJ_TILE_BEE + frame * BEE_TILES_PER_FRAME
+        );
+    }
 }
 
 // ======================================================
@@ -390,6 +418,7 @@ void initGame(void) {
     beanstalkGrowthStage = 0;
     invincibilityCheat = 0;
     cheatModeEnabled = 0;
+    beeCount = 0;
 
     currentLevel = LEVEL_HOME;
     levelWidth = getLevelPixelWidth(currentLevel);
@@ -596,6 +625,7 @@ static void goToHome(int respawn) {
     // Rebuild the bean sprout each time home is loaded.
     // If the player already collected it, initBeanSprout() will keep it hidden.
     initBeanSprout();
+    beeCount = 0;
 
     // Reapply the dynamic farmland / beanstalk visuals every time home loads.
     refreshHomeBeanstalkVisuals();
@@ -658,6 +688,7 @@ static void goToLevelOne(int respawn) {
     // Rebuild the Level 1 collectible each time the level is loaded.
     // If it was already collected, initBonemeal() keeps it hidden.
     initBonemeal();
+    initLevelBees(); // initializes bees
 
     hOff = levelWidth - SCREENWIDTH;
     if (hOff < 0) hOff = 0;
@@ -713,6 +744,7 @@ static void goToLevelTwo(int respawn) {
     // Rebuild the Level 2 collectible each time the level is loaded.
     // If it was already collected, initWaterDroplet() keeps it hidden.
     initWaterDroplet();
+    initLevelBees(); // initalizes bees
 
     hOff = 0;
     vOff = player.y + (player.height / 2) - (SCREENHEIGHT / 2);
@@ -907,6 +939,9 @@ static void updateGameplayCommon(void) {
     // Move the player first
     updatePlayerMovement();
 
+    // Update enemy movement after the player moves
+    updateBees();
+
     // Check item pickups after movement.
     updateCollectibles();
 
@@ -946,8 +981,7 @@ static void updateGameplayCommon(void) {
             recoverFromInvincibleFall();
             return;
         }
-    } else if (touchesHazard() || fellOutOfLevel()) {
-        goToLose(currentLevel);
+    } else if (touchesHazard() || fellOutOfLevel() || playerTouchesBee()) {        goToLose(currentLevel);
         return;
     }
 }
@@ -962,10 +996,12 @@ static void updatePlayerAnimation(void) {
         return;
     }
 
-    // Advance animation every few game frames.
-    // Lower number = faster animation.
+    // Use a slower delay for walking, but keep climbing at the current speed.
     player.animCounter++;
-    if (player.animCounter >= 6) {
+
+    int animDelay = player.climbing ? 6 : 12;
+
+    if (player.animCounter >= animDelay) {
         player.animCounter = 0;
         player.animFrame = (player.animFrame + 1) % PLAYER_ANIM_FRAMES;
     }
@@ -1927,6 +1963,117 @@ static void handleLevelTransitions(void) {
     }
 }
 
+static int beeBodyHitsSolidAt(int x, int y) {
+    // Sample several points on the bee body so it obeys the collision map
+    // instead of clipping into platforms or walls.
+    int leftX   = x;
+    int centerX = x + (BEE_WIDTH / 2);
+    int rightX  = x + BEE_WIDTH - 1;
+
+    int topY    = y;
+    int middleY = y + (BEE_HEIGHT / 2);
+    int bottomY = y + BEE_HEIGHT - 1;
+
+    return isBlockedPixel(currentLevel, leftX, topY)
+        || isBlockedPixel(currentLevel, leftX, middleY)
+        || isBlockedPixel(currentLevel, leftX, bottomY)
+        || isBlockedPixel(currentLevel, rightX, topY)
+        || isBlockedPixel(currentLevel, rightX, middleY)
+        || isBlockedPixel(currentLevel, rightX, bottomY)
+        || isBlockedPixel(currentLevel, centerX, topY)
+        || isBlockedPixel(currentLevel, centerX, bottomY);
+}
+
+static int canBeeMoveTo(int newX, int newY) {
+    int rightX = newX + BEE_WIDTH - 1;
+    int bottomY = newY + BEE_HEIGHT - 1;
+
+    if (newX < 0 || rightX >= levelWidth || newY < 0 || bottomY >= levelHeight) {
+        return 0;
+    }
+
+    return !beeBodyHitsSolidAt(newX, newY);
+}
+
+static void initBee(Bee* bee, int x, int y, int patrolRange, int startDir) {
+    bee->x = x;
+    bee->y = y;
+    bee->active = canBeeMoveTo(x, y);
+    bee->animFrame = 0;
+    bee->animCounter = 0;
+    bee->dir = (startDir >= 0) ? 1 : -1;
+
+    // Bee patrols in a small fixed horizontal band.
+    bee->minX = x - patrolRange;
+    bee->maxX = x + patrolRange;
+
+    if (bee->minX < 0) {
+        bee->minX = 0;
+    }
+    if (bee->maxX > levelWidth - BEE_WIDTH) {
+        bee->maxX = levelWidth - BEE_WIDTH;
+    }
+}
+
+static void initLevelBees(void) {
+    beeCount = 0;
+
+    if (currentLevel == LEVEL_ONE) {
+        initBee(&bees[0], LEVEL1_BEE_SPAWN_X, LEVEL1_BEE_SPAWN_Y, BEE_PATROL_RANGE, -1);
+        beeCount = 1;
+    } else if (currentLevel == LEVEL_TWO) {
+        initBee(&bees[0], LEVEL2_BEE_A_SPAWN_X, LEVEL2_BEE_A_SPAWN_Y, BEE_PATROL_RANGE, -1);
+        initBee(&bees[1], LEVEL2_BEE_B_SPAWN_X, LEVEL2_BEE_B_SPAWN_Y, BEE_PATROL_RANGE, 1);
+        beeCount = 2;
+    }
+}
+
+static void updateBees(void) {
+    for (int i = 0; i < beeCount; i++) {
+        Bee* bee = &bees[i];
+        int nextX;
+
+        if (!bee->active) {
+            continue;
+        }
+
+        // Animate wings
+        bee->animCounter++;
+        if (bee->animCounter >= 8) {
+            bee->animCounter = 0;
+            bee->animFrame = (bee->animFrame + 1) % BEE_ANIM_FRAMES;
+        }
+
+        // Horizontal patrol
+        nextX = bee->x + bee->dir * BEE_PATROL_SPEED;
+
+        // Reverse if the bee would leave its patrol zone or hit level collision.
+        if (nextX < bee->minX || nextX > bee->maxX || !canBeeMoveTo(nextX, bee->y)) {
+            bee->dir *= -1;
+            nextX = bee->x + bee->dir * BEE_PATROL_SPEED;
+
+            // If both directions are blocked, stay put.
+            if (nextX < bee->minX || nextX > bee->maxX || !canBeeMoveTo(nextX, bee->y)) {
+                continue;
+            }
+        }
+
+        bee->x = nextX;
+    }
+}
+
+static int playerTouchesBee(void) {
+    for (int i = 0; i < beeCount; i++) {
+        if (bees[i].active && rectsOverlap(
+                player.x, player.y, player.width, player.height,
+                bees[i].x, bees[i].y, BEE_WIDTH, BEE_HEIGHT)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 // ======================================================
 //                COLLECTIBLES / INVENTORY
 // ======================================================
@@ -2285,11 +2432,69 @@ static void drawSprites(void) {
         hideSprite(OBJ_INDEX_WATER);
     }
 
+    // --------------------------------------------------
+    // Draw bees
+    //
+    // Each bee is 16x24, so like the bean sprout it is drawn as:
+    //   top    16x16
+    //   bottom 16x8
+    //
+    // The sprite sheet only includes one facing direction, so horizontal flip
+    // is used when the bee is moving left.
+    // --------------------------------------------------
+    for (int i = 0; i < 3; i++) {
+        int topIndex = OBJ_INDEX_BEE0_TOP + (i * 2);
+        int bottomIndex = OBJ_INDEX_BEE0_BOTTOM + (i * 2);
+
+        if (i >= beeCount || !bees[i].active) {
+            hideSprite(topIndex);
+            hideSprite(bottomIndex);
+            continue;
+        }
+
+        {
+            int beeScreenX = bees[i].x - hOff;
+            int beeScreenY = bees[i].y - vOff;
+            int tileBase = OBJ_TILE_BEE + bees[i].animFrame * BEE_TILES_PER_FRAME;
+            
+            // Bee art in the sprite sheet already faces left.
+            // Only flip it when the bee is moving right.
+            int flip = (bees[i].dir > 0) ? ATTR1_HFLIP : 0;
+
+            if (beeScreenX < -BEE_WIDTH || beeScreenX >= SCREENWIDTH ||
+                beeScreenY < -BEE_HEIGHT || beeScreenY >= SCREENHEIGHT) {
+                hideSprite(topIndex);
+                hideSprite(bottomIndex);
+            } else {
+                // Top 16x16 piece
+                shadowOAM[topIndex].attr0 =
+                    ATTR0_Y(beeScreenY) | ATTR0_SQUARE | ATTR0_4BPP;
+                shadowOAM[topIndex].attr1 =
+                    ATTR1_X(beeScreenX) | ATTR1_SMALL | flip;
+                shadowOAM[topIndex].attr2 =
+                    ATTR2_TILEID(tileBase)
+                    | ATTR2_PRIORITY(0)
+                    | ATTR2_PALROW(WORLD_SPRITE_PALROW);
+
+                // Bottom 16x8 piece
+                shadowOAM[bottomIndex].attr0 =
+                    ATTR0_Y(beeScreenY + 16) | ATTR0_WIDE | ATTR0_4BPP;
+                shadowOAM[bottomIndex].attr1 =
+                    ATTR1_X(beeScreenX) | ATTR1_TINY | flip;
+                shadowOAM[bottomIndex].attr2 =
+                    ATTR2_TILEID(tileBase + 4)
+                    | ATTR2_PRIORITY(0)
+                    | ATTR2_PALROW(WORLD_SPRITE_PALROW);
+            }
+        }
+    }
+
     // Hide everything else
-    for (int i = 5; i < 128; i++) {
+    for (int i = 11; i < 128; i++) {
         hideSprite(i);
     }
 }
+
 
 static void hideSprite(int index) {
     // Hide one sprite entry in shadow OAM.

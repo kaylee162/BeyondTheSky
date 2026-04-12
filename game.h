@@ -27,15 +27,20 @@
 // ======================================================
 
 #define ITEM_SIZE           8
-#define BEE_SIZE            8
 
-#define GRAVITY             1
-#define JUMP_VEL           -12
-#define MAX_FALL_SPEED      4
-#define MOVE_SPEED          2
-#define CLIMB_SPEED         1
+#define BEE_WIDTH           16
+#define BEE_HEIGHT          24
+#define BEE_ANIM_FRAMES      3
+#define BEE_TILES_PER_FRAME  6   // 2 x 3 tiles
+#define BEE_PATROL_SPEED     1
 
-#define TRANSPARENT_TILE_ID 4
+#define GRAVITY              1
+#define JUMP_VEL            -12
+#define MAX_FALL_SPEED       4
+#define MOVE_SPEED           2
+#define CLIMB_SPEED          1
+
+#define TRANSPARENT_TILE_ID  4
 
 // Useful clamp macro
 #define CLAMP(v, lo, hi) ((v) < (lo) ? (lo) : ((v) > (hi) ? (hi) : (v)))
@@ -130,18 +135,22 @@
 #define OBJ_INDEX_BEAN_BOTTOM   2
 #define OBJ_INDEX_BONEMEAL      3
 #define OBJ_INDEX_WATER         4
+#define OBJ_INDEX_BEE0_TOP      5
+#define OBJ_INDEX_BEE0_BOTTOM   6
+#define OBJ_INDEX_BEE1_TOP      7
+#define OBJ_INDEX_BEE1_BOTTOM   8
+#define OBJ_INDEX_BEE2_TOP      9
+#define OBJ_INDEX_BEE2_BOTTOM   10
 
-
-// Bonemeal and Water Droplet Rescourse sprites
 // Bonemeal and water droplet are both 2 tiles wide x 2 tiles tall = 16x16.
 #define RESOURCE_WIDTH           16
 #define RESOURCE_HEIGHT          16
 #define RESOURCE_ANIM_FRAMES      2
 #define RESOURCE_TILES_PER_FRAME  4   // 2 x 2 tiles
 
-// Put these right after the bean sprout tiles in OBJ memory.
 #define OBJ_TILE_BONEMEAL        (OBJ_TILE_BEAN_SPROUT + BEAN_SPROUT_TILES)
 #define OBJ_TILE_WATER           (OBJ_TILE_BONEMEAL + RESOURCE_ANIM_FRAMES * RESOURCE_TILES_PER_FRAME)
+#define OBJ_TILE_BEE             (OBJ_TILE_WATER + RESOURCE_ANIM_FRAMES * RESOURCE_TILES_PER_FRAME)
 
 // ======================================================
 //                    INVENTORY FLAGS
@@ -207,6 +216,20 @@
 
 // Put the droplet about 2/3 of the way up the level.
 #define LEVEL2_WATER_SPAWN_Y             (6 * 8) //8
+
+// ------------------------------------------------------
+// BEE ENEMY SPAWNS
+// ------------------------------------------------------
+#define LEVEL1_BEE_SPAWN_X               (27 * 8)
+#define LEVEL1_BEE_SPAWN_Y               (18 * 8)
+
+#define LEVEL2_BEE_A_SPAWN_X             (54 * 8)
+#define LEVEL2_BEE_A_SPAWN_Y             (17 * 8)
+
+#define LEVEL2_BEE_B_SPAWN_X             (40 * 8)
+#define LEVEL2_BEE_B_SPAWN_Y             (10 * 8)
+
+#define BEE_PATROL_RANGE                 (4 * 8)
 
 // Small upward launch when the player reaches the top of a ladder / vine.
 // This helps em "hop" onto the platform instead of getting stuck.
@@ -358,6 +381,10 @@ typedef struct {
     int animFrame;
     int animCounter;
     int dir;
+
+    // Horizontal patrol limits in world pixels.
+    int minX;
+    int maxX;
 } Bee;
 
 // ======================================================

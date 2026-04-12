@@ -86,7 +86,7 @@ The gameplay loop focuses on exploration, resource collection, and vertical prog
 * **Animated cloud system**
 
   * Smooth horizontal looping  
-  * Independent from camera movement (work in progress)
+  * Independent from camera movement
 
 * Tile-based environments with consistent palette usage
 
@@ -188,7 +188,7 @@ The gameplay loop focuses on exploration, resource collection, and vertical prog
 
 ---
 
-### Milestone Two IN PROGRESS
+### Milestone Two COMPLETE
 
 * Resource items (sprites: bonemeal & droplet) properly added in game
 * Deposit logic for the bonemeal and water droplet working perfectly with tile modification
@@ -200,47 +200,33 @@ The gameplay loop focuses on exploration, resource collection, and vertical prog
 * Smooth animated daylight cycle (palette modification at runtime)
 * Get instant resource cheat
 * Updated Spritesheet with player animations
+* Added bee sprite to the game with animations (still a work in progress)
+* Enemy game logic with the bee sprite
+
+---
+
+### Milestone Three
 
 #### Need to Fix
 
+NONE!
+
 #### TODO
 
-**Sprites / Animation**
-* Add enemy bee sprite (animation already created)
+#### Sprites & Animation
 
-**Daytime Cycle**
-* Add sun sprite
-* Move sun across screen on timer
-
----
-
-### Milestone Three TBD
-
----
-
-## Final Requirements / Planned Features
-
-### Sprites & Animation
-
-* Add and animate enemy bee
 * Add sun sprite and animation synced with daytime cycle
 
----
-
-### Levels
+#### Levels
 
 * Add moving platforms in Level 1 and Level 2
 
----
-
-### Sound
+#### Sound
 
 * Background music (digital sound)
 * Action sound effects (digital sound)
 
----
-
-### Polish / Nice-to-Haves
+#### Polish / Nice-to-Haves
 
 * Themed “sign-style” UI screens:
   * Start  

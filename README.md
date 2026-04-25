@@ -219,7 +219,9 @@ The gameplay loop focuses on exploration, resource collection, and vertical prog
 #### TODO
 
 * Background music (digital sound)
+farm cozy music
 * Action sound effects (digital sound)
+seed planting sound effect
 
 #### Polish Additions
 
@@ -232,3 +234,11 @@ NONE :P
 ## Credits
 
 Developed as part of a **Game Boy Advance programming project** using the devkitARM toolchain and mGBA emulator.
+
+### Sound
+Bean Sprout Planting Sound Effect
+https://minecraft.wiki/w/
+
+Background Music (Monument Music Gentle Fields) & 
+Damage Sound Effect
+https://pixabay.com/music/

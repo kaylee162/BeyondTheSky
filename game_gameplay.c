@@ -117,7 +117,7 @@ void updateGameplayCommon(void) {
         }
     } else if (touchesHazard() || fellOutOfLevel() || playerTouchesBee()) {
         // damage sound effect (on channel B)
-        playSoundB(damage_data, damage_length, damage_sampleRate, 0);
+        playSoundB(ouch_data, ouch_length, ouch_sampleRate, 0);
 
         goToLose(currentLevel);
         return;

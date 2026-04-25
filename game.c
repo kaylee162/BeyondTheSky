@@ -60,6 +60,11 @@ void initGame(void) {
     // Set up VRAM, backgrounds, sprite systems, palettes, and other display data.
     initGraphics();
 
+    // Initalize sound
+    initSound();
+    // set up sound A as the background music
+    playSoundA(background_music_data, background_music_length, background_music_sampleRate, 1);
+
     // Reset frame-based systems and progression tracking for a fresh playthrough.
     frameCounter = 0;
     inventoryFlags = 0;
@@ -93,6 +98,9 @@ void initGame(void) {
 void updateGame(void) {
     // Count frames globally so timed systems can reference one shared clock.
     frameCounter++;
+
+    // setup sound as looping and non-looping sounds sounds restart / stop correctly
+    setupSounds();
 
     // Run only the logic for the currently active game state.
     switch (state) {

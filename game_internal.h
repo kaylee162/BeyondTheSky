@@ -14,6 +14,10 @@
 #include "spriteSheet.h"
 #include "homebase_foreground.h"
 #include "title.h"
+#include "sound.h"
+#include "background_music.h"
+#include "damage.h"
+#include "planting.h"
 
 extern GameState state;
 extern GameState gameplayStateBeforePause;

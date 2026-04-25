@@ -281,18 +281,30 @@ void tryDepositResource(void) {
         if (inventoryFlags & INVENTORY_BEAN_SPROUT) {
             inventoryFlags &= ~INVENTORY_BEAN_SPROUT;
             beanstalkGrowthStage = 1;
+
+            // planting sound effect
+            playSoundB(planting_data, planting_length, planting_sampleRate, 0);
+
             refreshHomeBeanstalkVisuals();
         }
     } else if (beanstalkGrowthStage == 1) {
         if (inventoryFlags & INVENTORY_BONEMEAL) {
             inventoryFlags &= ~INVENTORY_BONEMEAL;
             beanstalkGrowthStage = 2;
+
+            // planting sound effect
+            playSoundB(planting_data, planting_length, planting_sampleRate, 0);
+
             refreshHomeBeanstalkVisuals();
         }
     } else if (beanstalkGrowthStage == 2) {
         if (inventoryFlags & INVENTORY_WATER) {
             inventoryFlags &= ~INVENTORY_WATER;
             beanstalkGrowthStage = 3;
+
+            // planting sound effect
+            playSoundB(planting_data, planting_length, planting_sampleRate, 0);
+            
             refreshHomeBeanstalkVisuals();
         }
     }

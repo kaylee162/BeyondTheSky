@@ -2,177 +2,158 @@
 
 ## Overview
 
-**Beyond the Sky** is a Game Boy Advance platformer built in **Mode 0** where the player explores a home base and progresses through sky levels by growing a beanstalk.
+**Beyond the Sky** is a Game Boy Advance platformer built in **Mode 0** using tilemaps, sprites, DMA, collision maps, and Direct Sound.
 
-The gameplay loop focuses on exploration, resource collection, and vertical progression, with smooth movement, layered backgrounds, and simple but polished mechanics.
+The player explores a home base, gathers resources across two sky levels, upgrades a magical beanstalk, and climbs toward the castle above the clouds.
 
 ---
 
 ## Controls
 
-* **D-Pad Left / Right** → Move
-* **D-Pad Up** → Jump or Climb ladder/beanstalk (if at a climbing tile)
-* **START** → Pause / Resume
-* **SELECT + UP** → Toggle cheat mode
+- **D-Pad Left / Right** → Move  
+- **D-Pad Up** → Jump  
+- **A Button** → Climb ladders / beanstalk  
+- **START** → Pause / Resume  
+- **LEFT / RIGHT** (Instructions) → Change pages  
+- **SELECT + B** → Toggle cheat mode  
+- **SELECT + A** → Grant next required resource (debug)
 
 ---
 
 ## Core Gameplay Loop
 
-1. Spawn in the **home base**
-2. Collect a **bean sprout**
-3. Deposit it to upgrade farmland (plants the seed)
-4. Collect bonemeal in **Level 1**
-5. Deposit bonemeal to grow the **beanstalk**
-6. Climb upward to reach **Level 2**
-7. Collect water droplet and deposit to fully grow the **beanstalk**
-8. Climb to the top and win
+1. Start in the **Home Base**
+2. Collect the **Bean Sprout**
+3. Plant it in the farmland
+4. Travel to **Level 1** and collect **Bonemeal**
+5. Return home and upgrade the beanstalk
+6. Travel to **Level 2** and collect **Water**
+7. Return home and fully grow the beanstalk
+8. Climb to the castle and win
 
 ---
 
 ## Game States
 
-* Start Screen
-* Instructions Screen
-* Home Base
-* Level 1 (side-scrolling sky level)
-* Level 2 (side-scrolling sky level)
-* Pause Screen
-* Win Screen
-* Lose Screen
+- Start Screen  
+- Instructions Screen  
+- Home Base  
+- Level 1  
+- Level 2  
+- Pause Screen  
+- Win Screen  
+- Lose Screen  
+
+State transitions are managed through a modular state system in `game_states.c`.
 
 ---
 
-## Key Features
+## Major Features
 
-### Player Mechanics
+## Player Movement
 
-* Smooth horizontal movement and jumping with gravity
-* Ladder / beanstalk climbing system
-* Improved ladder-top behavior (no getting stuck at the top)
-* Refined collision detection using multiple probe points
+- Smooth left / right movement
+- Gravity and jumping
+- Ladder / beanstalk climbing
+- Improved ladder-top exit behavior
+- Safe respawn handling after hazards
 
----
+## World Progression
 
-### World & Progression
+Multi-stage beanstalk growth using runtime tilemap edits:
 
-* Multi-stage **beanstalk growth system**
+1. Empty farmland  
+2. Seed planted  
+3. Partial beanstalk growth  
+4. Full beanstalk growth  
 
-  * Regular farmland  
-  * Seed farmland (after bean sprout)  
-  * 2/3 grown beanstalk (after bonemeal)
-    The beanstalk base is full grown, but the top is still hidden and a custom beanstalk top is drawn
-  * Fully grown beanstalk (after water droplet)  
-* Tilemap modification for dynamic world changes
-* Multiple level transitions (top and bottom portals)
+## Camera System
 
----
+- Side-scrolling camera in Level 1 and Level 2
+- Camera follows player position
+- Scroll clamped to map bounds
+- Stable transitions between maps
 
-### Camera System
+## Background Effects
 
-* Camera follows the player
-* Clamped scrolling within level bounds
-* Stable transitions between levels and home base
+- Multi-layer tile backgrounds
+- Animated clouds with parallax movement
+- Runtime palette day/night cycle:
+  - Morning
+  - Day
+  - Sunset
+  - Night
 
----
+## HUD / UI
 
-### Background & Visuals
+Top HUD displays:
 
-* **Layered background system (Mode 0)**
+- Current area
+- Inventory
+- Cheat mode status
 
-  * Foreground gameplay layer  
-  * Separate cloud background layer  
+Uses a dedicated font layer and HUD panel for readability.
 
-* **Animated cloud system**
+## Enemies
 
-  * Smooth horizontal looping  
-  * Independent from camera movement
+- Animated bee enemy
+- Patrol movement
+- Collision damage
 
-* Tile-based environments with consistent palette usage
+## Audio
 
-* **Daytime Cycle**
+Implemented with GBA Direct Sound:
 
-* Full palette transitions:
-  * Early day → Day → Sunset → Night  
-* Timer-based cycle system
+- Looping background music
+- Planting / deposit sound effect
+- Damage sound effect
 
----
+Files handled through:
 
-### HUD & UI
-
-* Dynamic HUD displaying:
-
-  * Current level/map
-  * Inventory  
-  * Cheat status (when enabled)  
-
-* Clean HUD clearing and redraw system
-* Text rendering using tilemap font system
-
----
-
-### Inventory System
-
-* Tracks collected items (bean sprout, bonemeal, water)
-* Displays current inventory in HUD
-* Used to trigger world progression events
-
----
-
-### Collision System
-
-* Collision maps using palette indices:
-
-  * Walkable / blocked tiles  
-  * Hazards  
-  * Climbable tiles  
-  * Level transitions  
-
-* Improved collision accuracy for tall player sprite
-* Hazard detection and respawn handling
-
----
-
-### Level Transitions
-
-* Multiple transition types:
-
-  * Home ↔ Level 1 (top and bottom entries)  
-  * Home ↔ Level 2  
-
-* Precise spawn positioning on transitions
-* Seamless camera and state updates
-
----
-
-### Cheats / Debug Features
-
-* Toggleable debug mode
-* **Invincibility debug** (player cannot die)  
-* **Visual indicator when this is enabled in the HUD
-
-* Instant resource cheat
-* **Instantly grant next required resource
-* **Enables full game completion in seconds for testing
+- `sound.c`
+- `sound.h`
+- `background_music.*`
+- `planting.*`
+- `ouch.*`
 
 ---
 
 ## Technical Highlights
 
-* Built using **Mode 0 tilemaps and sprites**
-* Efficient rendering using:
+- **Mode 0 tiled rendering**
+- Multiple background layers
+- Sprite animation system
+- DMA memory transfers
+- Collision maps
+- Palette editing at runtime
+- Modular game architecture
+- Direct Sound using timers + FIFO + DMA
 
-  * Hardware scrolling (`REG_BGxHOFF / VOFF`)  
-  * DMA for fast memory transfers  
+---
 
-* Clean state machine architecture for game flow
-* Modular systems:
+## Updated File Structure
 
-  * Player  
-  * Camera  
-  * Collision  
-  * Rendering  
-  * World updates  
+## Core Game Logic
+
+- `main.c` – program entry point  
+- `game.c` – main game loop / state dispatch  
+- `game.h` – shared structs, constants, globals  
+- `game_internal.h` – internal prototypes  
+
+## Gameplay Modules
+
+- `game_states.c` – state transitions  
+- `game_gameplay.c` – runtime gameplay logic  
+- `game_home.c` – home base progression logic  
+- `game_entities.c` – player / enemies / items  
+- `game_collision.c` – movement + collision checks  
+- `game_render.c` – HUD / sprites / visual rendering  
+- `game_system.c` – shared systems / helpers  
+
+## Assets
+
+- Tilemaps, collision maps, palettes, spritesheets
+- Music and sound effect data converted to C arrays
 
 ---
 
@@ -205,40 +186,33 @@ The gameplay loop focuses on exploration, resource collection, and vertical prog
 
 ---
 
-### Milestone Three
+### Milestone Three COMPLETE
 
 * Directional signs in levels for guidance for the player
 * Themed UI screens for Start, Instructions, Pause & Win / Lose  
 * Refactored the codebase to clean up game.c & organize the code better
 * Added a castle at the top of the level
 * If you collect a resource, and die inside a level, you lose the resource and have to complete the level again. 
+* Added a cozy looping background music
+* Added some action sounds for planting and damage
 
-#### Need to Fix
+---
 
+## Known Issues
 
-#### TODO
-
-* Background music (digital sound)
-farm cozy music
-* Action sound effects (digital sound)
-seed planting sound effect
-
-#### Polish Additions
-
-## Known Issuese
-
-NONE :P
+- Sound effects may need further balancing against music volume.
+- Timing on some effects can vary slightly depending on gameplay state.
 
 ---
 
 ## Credits
 
-Developed as part of a **Game Boy Advance programming project** using the devkitARM toolchain and mGBA emulator.
+Developed as part of a **Game Boy Advance programming project** using:
 
-### Sound
-Bean Sprout Planting Sound Effect
-https://minecraft.wiki/w/
+- devkitARM  
+- mGBA Emulator  
+- grit  
+- Tiled  
+- Audacity  
 
-Background Music (Monument Music Gentle Fields) & 
-Damage Sound Effect
-https://pixabay.com/music/
+Music / sound sources used from royalty-free and converted assets.

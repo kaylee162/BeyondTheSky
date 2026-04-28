@@ -36,6 +36,10 @@ void goToStart(void) {
     clearHud();
     drawTitleScreen();
     setMenuPalette();
+
+    // Set sky blue background color for title screen
+    BG_PALETTE[0] = RGB(0, 23, 31);
+    BG_PALETTE[FONT_PALROW * 16 + 0] = RGB(0, 23, 31);
 }
 
 // switches to the instructions menu and loads its first page. The shared menu background stays active while the text layer changes
@@ -47,6 +51,9 @@ void goToInstructions(void) {
     clearHud();
     drawInstructionsPage();
     setMenuPalette();
+
+    BG_PALETTE[0] = RGB(0, 23, 31);
+    BG_PALETTE[FONT_PALROW * 16 + 0] = RGB(0, 23, 31);
 }
 
 // Enters the home level, loads its maps, restores the correct player state, and reapplies the home-specific visuals. This is the main setup path for returning to the hub area.
@@ -250,11 +257,15 @@ void goToLevelTwo(int respawn) {
 void goToPause(void) {
     // Remember the gameplay state we came from, then open the pause screen.
     gameplayStateBeforePause = state;
+    pauseSounds();
     state = STATE_PAUSE;
     enableMenuDisplay();
     clearHud();
     drawPauseScreen();
     setMenuPalette();
+
+    BG_PALETTE[0] = RGB(0, 23, 31);
+    BG_PALETTE[FONT_PALROW * 16 + 0] = RGB(0, 23, 31);
 }
 
 // Switches the game into the win state and prepares the menu-style presentation for the victory screen
@@ -264,6 +275,9 @@ void goToWin(void) {
     enableMenuDisplay();
     clearHud();
     setMenuPalette();
+
+    BG_PALETTE[0] = RGB(0, 23, 31);
+    BG_PALETTE[FONT_PALROW * 16 + 0] = RGB(0, 23, 31);
 }
 
 // switches the game into the lose state and records which level the player should return to when they respawn.
@@ -282,6 +296,9 @@ void goToLose(int levelToReturnTo) {
     enableMenuDisplay();
     clearHud();
     setMenuPalette();
+
+    BG_PALETTE[0] = RGB(0, 23, 31);
+    BG_PALETTE[FONT_PALROW * 16 + 0] = RGB(0, 23, 31);
 }
 
 // ======================================================
@@ -405,6 +422,8 @@ void updatePause(void) {
         // title/menu tilemap, so we must restore the real gameplay maps.
         configureMapBackgroundsForLevel(currentLevel);
         loadLevelMaps(currentLevel);
+
+        unpauseSounds();
 
         // Homebase uses runtime tilemap edits for the farmland / beanstalk.
         // Reloading the raw exported home map brings back the original full

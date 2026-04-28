@@ -1,5 +1,16 @@
 #include "sprites.h"
 
+/* DEV NOTES FOR THIS FILE:
+ *
+ * This file contains shared sprite/OAM helpers.
+ * Right now, its main job is hiding all sprite entries in shadowOAM before the
+ * renderer chooses which sprites should be visible.
+ *
+ * In the larger game:
+ * The renderer writes sprite attributes into shadowOAM, and main.c copies that
+ * shadowOAM data into real OAM during VBlank.
+ */
+
 // Hides all sprites in the shadowOAM
 void hideSprites() {
     int i;

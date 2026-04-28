@@ -1,11 +1,14 @@
 #ifndef GAME_INTERNAL_H
 #define GAME_INTERNAL_H
 
-/* QUICK NOTE:
- * this is the internal gameplay coordination header 
+/* DEV NOTES FOR THIS FILE:
  *
- * This file shares the game-wide state and internal helper prototypes across
- * all the gameplay modules.
+ * This is the internal coordination header for the game modules.
+ * It exposes shared global state and internal helper prototypes so the split
+ * gameplay files can work together without putting everything in one giant file.
+ *
+ * This file is not meant to be a public API. It is mainly used by the internal
+ * game_*.c files that make up the project engine.
  */
 
 #include <string.h>

@@ -1,5 +1,15 @@
 #include "gba.h"
 
+/* DEV NOTES FOR THIS FILE:
+ *
+ * This file contains general GBA utility functions used across the project.
+ * It includes rectangle collision, VBlank waiting, and DMA transfer setup.
+ *
+ * In the larger game:
+ * These helpers are intentionally low-level and reusable. Most gameplay files
+ * rely on them indirectly for timing, drawing, sound, sprites, and VRAM copies.
+ */
+
 // Pointer to the start of video memory
 unsigned volatile short *videoBuffer = (unsigned short *)0x6000000;
 

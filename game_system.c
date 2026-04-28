@@ -2,27 +2,22 @@
 
 /* DEV NOTES FOR THIS FILE:
  *
- * This file is responsible for the low-level visual setup that the rest of the
- * the game depends on. 
- * 
- * More specifically, it handles:
- *   - loading background and sprite assets into VRAM
- *   - repacking sprite graphics from the exported sprite sheet into OBJ memory
- *   - setting up palette rows for tiles, fonts, and sprites
- *   - running the real-time daytime sky color cycle
- *   - restoring the menu palette when the game is not in active gameplay
- *   - switching between gameplay display mode and menu display mode
- *   - initializing the shared graphics environment when a new game starts
+ * This file handles the low-level setup that the rest of the game relies on.
+ * It prepares the GBA display, loads graphics into VRAM, sets up palettes,
+ * configures sprite graphics, and manages menu/gameplay display modes.
  *
- * In the larger scope of the game:
- * this module is the visual foundation for the whole game. 
- * Other files decide what state the game is in and what should
- * happen, but this file makes sure the hardware is configured correctly so that
- * the right backgrounds, tiles, sprites, and palette colors actually appear on
- * the screen.
+ * More specifically, this file handles:
+ * - loading background and sprite assets
+ * - copying sprite graphics into OBJ memory
+ * - setting up BG and OBJ palette rows
+ * - updating the runtime sky palette cycle
+ * - restoring the fixed menu palette
+ * - switching between gameplay and menu display layouts
  *
- * This file does not control movement, collision, or game progression directly.
- * Instead, it provides the shared rendering setup that those systems rely on.
+ * In the larger game:
+ * This file is the hardware/graphics foundation. Gameplay modules decide what
+ * should happen, and this file makse sure the GBA is cnofigured so it can be
+ * shown correctly.
  */
 
 // These functions are implemented in this file, but are also used by other

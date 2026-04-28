@@ -2,6 +2,17 @@
 #include "sprites.h"
 #include "gba.h"
 
+/* DEV NOTES FOR THIS FILE:
+ *
+ * This file contains helper functions for GBA Mode 0 tiled backgrounds.
+ * It initializes the display, configures background control registers, updates
+ * scroll offsets, and clears/fills screenblocks.
+ *
+ * In the larger game:
+ * Gameplay rendering depends on these helpers to manage BG0 for text/HUD,
+ * BG1 for the moving background layer, and BG2 for the main foreground layer.
+ */
+
 // Initializes the display for Mode 0 tile rendering
 void initMode0(void) {
     // Enable Mode 0, background 0, background 1, and sprites

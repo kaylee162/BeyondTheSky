@@ -1,6 +1,24 @@
 #include "gba.h"
 #include "sound.h"
 
+/* DEV NOTES FOR THIS FILE:
+ *
+ * This file manages the Direct Sound for the game.
+ * Channel A is used for looping background music, and Channel B is used for
+ * short action sound effects like planting and damage.
+ *
+ * More specifically, it handles:
+ * - enabling the GBA sound hardware
+ * - setting up FIFO A and FIFO B
+ * - using DMA to stream audio data
+ * - using timers to control playback speed
+ * - tracking whether sounds are looping or finished
+ *
+ * In the larger game:
+ * Gameplay and state files only request sounds. This file hanldes the hardware
+ * details needed to actually play them.
+ */
+
 SOUND soundA;
 SOUND soundB;
 

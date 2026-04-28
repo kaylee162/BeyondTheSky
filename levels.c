@@ -10,6 +10,23 @@
 #include "levelone_collisionMap.h"
 #include "leveltwo_collisionMap.h"
 
+/* DEV NOTES FOR THIS FILE:
+ *
+ * This file loads and cnofigures the visual maps and collision maps for each
+ * playable area.
+ *
+ * More specifically, it handles:
+ * - configuring BG1 and BG2 for tall or wide maps
+ * - copying exported tilemaps into screenblocks
+ * - loading home, level 1, and level 2 foreground/background maps
+ * - returning the correct collision map for the active level
+ *
+ * In the larger game:
+ * This file keeps map loading separate from gameplay logic. The state system
+ * decides which level is active, and this file makes sure the correct map data
+ * is laoded for that level.
+ */
+
 // ======================================================
 //        INTERNAL HELPER: COPY ONE SCREENBLOCK
 // ======================================================

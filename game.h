@@ -7,6 +7,17 @@
 #include "font.h"
 #include "levels.h"
 
+/* DEV NOTES FOR THIS FILE:
+ *
+ * This is the main public game header.
+ * It defines core gameplay constants, sprite sizes, collision values, level IDs,
+ * item flags, and shared structs used across the project.
+ *
+ * In the larger game:
+ * Other modules include this file when they need the common definitions for
+ * player movement, resources, bees, levels, backgrounds, or game states.
+ */
+
 // ======================================================
 //                    BACKGROUND SETUP
 // ======================================================

@@ -2,25 +2,22 @@
 
 /* DEV NOTES FOR THIS FILE:
  *
- * This file is in charge of all the parts of the game that are unique to the
- * homebase map (which is mainly the farmland and beanstalk progression system).
- * Unlike the regular level maps (l1 & l2), the home map changes at runtime based on what
- * the player has collected and deposited. Because of that, this file acts as
- * the bridge between inventory progression and visible world changes.
+ * This file controls the homebase-specific progression system.
+ * The home map is not static: it changes as the player plants the bean sprout,
+ * deposits bonemeal, deposits water, and grows the beanstalk.
  *
  * More specifically, this file handles:
- * - reading original tile entries from the home foreground map
- * - writing updated tile entries directly into the live home foreground map
- * - stamping rectangular tile regions from the tileset into the map
- * - rebuilding the farmland and beanstalk visuals based on growth stage
- * - checking whether the player is standing on the farmland
- * - handling B-button resource deposits in the correct progression order
- * - limiting which parts of the home beanstalk are actually climbable
+ * - editing the live home foreground tilemap at runtime
+ * - updating farmland, seed, partial stalk, and full stalk visuals
+ * - checking whether the player is standing near the farmland
+ * - depositing resources with B in the correct order
+ * - playing the planting/deposit sound effect
+ * - gating which parts of the beanstalk are climbable by growth stage
  *
- * In the larger scope of the game:
- * - collectibles are picked up in the world and stored in inventory elsewhere
- * - this file uses those collected resources to visually and mechanically grow
- *   the beanstalk back in homebase
+ * In the larger game:
+ * This file connects inventory progress to visible world progress.
+ * Other files handle pickups and movement, while this file makes the home
+ * environment physically change as the player advances.
  */
 
 // Returns the tileset entry for a home foreground tile at the given source coordinates. It packages the tile index the same way the home map expects it in VRAM

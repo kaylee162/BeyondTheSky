@@ -155,7 +155,7 @@ void initBeanSprout(void) {
     int playerGroundY;
 
     // Put the bean sprout about 5 tiles in front of the player spawn.
-    beanSprout.x = HOME_SPAWN_X + (5 * 8);
+    beanSprout.x = HOME_SPAWN_X + (14 * 8); // 5 here
 
     // findStandingSpawnY() returns a TOP-Y for a player-sized body.
     // Convert that into a ground Y, then place the bean sprout so its feet
@@ -169,6 +169,9 @@ void initBeanSprout(void) {
         ((inventoryFlags & INVENTORY_BEAN_SPROUT) == 0) &&
         (beanstalkGrowthStage == 0);
 
+    // Start animation on frame 0.
+    beanSprout.animFrame = 0;
+    beanSprout.animCounter = 0;
     beanSprout.bob = 0;
 }
 
@@ -273,6 +276,16 @@ void updateCollectibles(void) {
 void updateCollectibleAnimations(void) {
     // Slowly toggle each active collectible between its animation frames.
     // A higher threshold means slower animation.
+    // bean sprout animation
+    if (currentLevel == LEVEL_HOME && beanSprout.active) {
+        beanSprout.animCounter++;
+        if (beanSprout.animCounter >= 20) {
+            beanSprout.animCounter = 0;
+            beanSprout.animFrame = (beanSprout.animFrame + 1) % BEAN_SPROUT_ANIM_FRAMES;
+        }
+    }
+    
+    // bonemeal animation
     if (currentLevel == LEVEL_ONE && bonemeal.active) {
         bonemeal.animCounter++;
         if (bonemeal.animCounter >= 20) {
@@ -281,6 +294,7 @@ void updateCollectibleAnimations(void) {
         }
     }
 
+    // water droplet animation
     if (currentLevel == LEVEL_TWO && waterDroplet.active) {
         waterDroplet.animCounter++;
         if (waterDroplet.animCounter >= 20) {

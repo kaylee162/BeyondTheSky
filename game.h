@@ -135,12 +135,13 @@
 // as two sprites:
 //   - top piece    = 16x16
 //   - bottom piece = 16x8
-#define BEAN_SPROUT_WIDTH       16
-#define BEAN_SPROUT_HEIGHT      24
-#define BEAN_SPROUT_TILES       6
+#define BEAN_SPROUT_WIDTH             16
+#define BEAN_SPROUT_HEIGHT            24
+#define BEAN_SPROUT_ANIM_FRAMES        2
+#define BEAN_SPROUT_TILES_PER_FRAME    6
 
 // sprites / collectibles use palette bank 1
-#define WORLD_SPRITE_PALROW     1
+#define WORLD_SPRITE_PALROW          1
 
 // Put the bean sprout tiles immediately after the player animation tiles.
 #define OBJ_TILE_BEAN_SPROUT    (OBJ_TILE_PLAYER_DOWN + PLAYER_ANIM_FRAMES * PLAYER_TILES_PER_FRAME)
@@ -164,7 +165,7 @@
 #define RESOURCE_ANIM_FRAMES      2
 #define RESOURCE_TILES_PER_FRAME  4   
 
-#define OBJ_TILE_BONEMEAL        (OBJ_TILE_BEAN_SPROUT + BEAN_SPROUT_TILES)
+#define OBJ_TILE_BONEMEAL        (OBJ_TILE_BEAN_SPROUT + BEAN_SPROUT_ANIM_FRAMES * BEAN_SPROUT_TILES_PER_FRAME)
 #define OBJ_TILE_WATER           (OBJ_TILE_BONEMEAL + RESOURCE_ANIM_FRAMES * RESOURCE_TILES_PER_FRAME)
 #define OBJ_TILE_BEE             (OBJ_TILE_WATER + RESOURCE_ANIM_FRAMES * RESOURCE_TILES_PER_FRAME)
 
@@ -226,7 +227,7 @@
 // LEVEL RESOURCE SPAWNS
 // ------------------------------------------------------
 // Level 1 bonemeal: near the left side of the level.
-#define LEVEL1_BONEMEAL_SPAWN_X          (6 * 8)
+#define LEVEL1_BONEMEAL_SPAWN_X          (4 * 8)
 
 // Level 2 water droplet: near the right side of the level.
 #define LEVEL2_WATER_SPAWN_X             (LEVEL2_PIXEL_W - (6 * 8))
@@ -271,7 +272,7 @@
 // Daytime cycle tuning
 // --------------------------------------------------
 // How many frames each transition segment lasts.
-#define DAYTIME_CYCLE_SEGMENT_FRAMES     1200 //600
+#define DAYTIME_CYCLE_SEGMENT_FRAMES     1800 
 
 // starting offset into the full cycle so starting the game starts it at EARLY MORNING
 #define DAYTIME_CYCLE_START_OFFSET_FRAMES   0

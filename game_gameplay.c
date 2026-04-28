@@ -355,8 +355,15 @@ void updatePlayerMovement(void) {
             player.direction = DIR_DOWN;
         }
     } else if (!player.grounded) {
-        // While airborne, use the down/fall row.
-        player.direction = DIR_DOWN;
+        // Only use the front-facing / down row when the player is actually falling.
+        // While jumping upward, keep the left/right walking row instead.
+        if (player.y > player.oldY) {
+            player.direction = DIR_DOWN;
+        } else if (player.y < player.oldY) {
+            if (player.direction != DIR_LEFT && player.direction != DIR_RIGHT) {
+                player.direction = DIR_RIGHT;
+            }
+        }
     }
 
     // Decide whether the player should be considered "moving" for animation.

@@ -51,7 +51,7 @@ Implemented **5 unique sprites**:
 - **Bee** uses flapping animation frames  
 
 ### Additional Motion
-- Bonemeal and Water Droplet gently float / bob.
+- Bean Sprout, Bonemeal and Water Droplet gently float / bob.
 
 **Code Locations:**  
 - `game_entities.c`  

@@ -336,6 +336,12 @@ void drawInstructionsPage(void) {
         putText(10, 14, "AVOID BEES");
         putText(6, 16, "< PREV   START PLAY");
     }
+
+    // --------------------------------------------------
+    // Reapply sky blue background every time page redraws
+    // --------------------------------------------------
+    BG_PALETTE[0] = RGB(0, 23, 31);
+    BG_PALETTE[FONT_PALROW * 16 + 0] = RGB(0, 23, 31);
 }
 
 // Draws the pause menu text over the menu background. This keeps pause presentation separate from gameplay rendering

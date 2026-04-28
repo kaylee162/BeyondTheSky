@@ -103,6 +103,10 @@ void drawSprites(void) {
         int beanScreenX = beanSprout.x - hOff;
         int beanScreenY = beanSprout.y - vOff;
 
+        // Pick the correct bean sprout animation frame.
+        int tileBase = OBJ_TILE_BEAN_SPROUT
+            + beanSprout.animFrame * BEAN_SPROUT_TILES_PER_FRAME;
+
         if (beanScreenX < -BEAN_SPROUT_WIDTH || beanScreenX >= SCREENWIDTH ||
             beanScreenY < -BEAN_SPROUT_HEIGHT || beanScreenY >= SCREENHEIGHT) {
             hideSprite(OBJ_INDEX_BEAN_TOP);
@@ -114,7 +118,7 @@ void drawSprites(void) {
             shadowOAM[OBJ_INDEX_BEAN_TOP].attr1 =
                 ATTR1_X(beanScreenX) | ATTR1_SMALL;
             shadowOAM[OBJ_INDEX_BEAN_TOP].attr2 =
-                ATTR2_TILEID(OBJ_TILE_BEAN_SPROUT)
+                ATTR2_TILEID(tileBase)
                 | ATTR2_PRIORITY(0)
                 | ATTR2_PALROW(WORLD_SPRITE_PALROW);
 
@@ -124,7 +128,7 @@ void drawSprites(void) {
             shadowOAM[OBJ_INDEX_BEAN_BOTTOM].attr1 =
                 ATTR1_X(beanScreenX) | ATTR1_TINY;
             shadowOAM[OBJ_INDEX_BEAN_BOTTOM].attr2 =
-                ATTR2_TILEID(OBJ_TILE_BEAN_SPROUT + 4)
+                ATTR2_TILEID(tileBase + 4)
                 | ATTR2_PRIORITY(0)
                 | ATTR2_PALROW(WORLD_SPRITE_PALROW);
         }
@@ -329,6 +333,7 @@ void drawInstructionsPage(void) {
         putText(7, 8, "FINISH LEVELS TO");
         putText(4, 10, "GET RESOURCES, RETURN");
         putText(3, 12, "HOME, PRESS B ON SOIL");
+        putText(10, 14, "AVOID BEES");
         putText(6, 16, "< PREV   START PLAY");
     }
 }

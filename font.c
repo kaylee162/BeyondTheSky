@@ -2328,22 +2328,6 @@ static inline volatile unsigned int* tilePtr(int charblock, int tileIndex) {
 static int gFontCharblock = 0;
 static int gFontTileBase = 0;
 
-static void setTilePixel(unsigned char outTile32Bytes[32], int x, int y, unsigned char val) {
-    if (x < 0 || x >= 8 || y < 0 || y >= 8) {
-        return;
-    }
-
-    int byteIndex = (y * 4) + (x / 2);
-
-    if ((x & 1) == 0) {
-        outTile32Bytes[byteIndex] =
-            (outTile32Bytes[byteIndex] & 0xF0) | (val & 0x0F);
-    } else {
-        outTile32Bytes[byteIndex] =
-            (outTile32Bytes[byteIndex] & 0x0F) | ((val & 0x0F) << 4);
-    }
-}
-
 static void buildGlyphTile(unsigned char outTile32Bytes[32], unsigned char ch) {
     for (int i = 0; i < 32; i++) {
         outTile32Bytes[i] = 0;

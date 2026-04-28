@@ -258,19 +258,21 @@ void initObjAssets(void) {
 
     // --------------------------------------------------
     // Copy bean sprout sprite art.
-    //
-    // Sheet position: (0, 21)
-    // Size: 2x3 tiles
-    //
-    // This gives a contiguous 6-tile block in OBJ VRAM:
-    //   top    16x16 uses tiles 0..3
-    //   bottom 16x8  uses tiles 4..5
+    // Two 16x24 frames stored as 2x3 tile blocks.
+    // Frame 0 starts at (0, 21), frame 1 starts at (2, 21).
     // --------------------------------------------------
     copySpriteBlockFromSheet(
         spriteSheetTiles, 32,
         0, 21,
         2, 3,
         OBJ_TILE_BEAN_SPROUT
+    );
+
+    copySpriteBlockFromSheet(
+        spriteSheetTiles, 32,
+        2, 21,
+        2, 3,
+        OBJ_TILE_BEAN_SPROUT + BEAN_SPROUT_TILES_PER_FRAME
     );
 
     // --------------------------------------------------
